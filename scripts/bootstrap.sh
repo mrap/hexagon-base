@@ -51,7 +51,7 @@ while [[ $# -gt 0 ]]; do
       echo "Options:"
       echo "  --agent    Agent folder name (e.g., atlas, friday)"
       echo "  --name     Override auto-detected full name"
-      echo "  --path     Install path (default: ~/.hexagon)"
+      echo "  --path     Install path (default: ~/hexagon)"
       echo ""
       echo "Auto-detects your full name from the system."
       echo "If --agent is not provided, you'll be prompted."
@@ -74,8 +74,13 @@ if [ -z "$AGENT" ]; then
   error "Agent name is required."
 fi
 
-# --- Resolve install path ---
-DEFAULT_PATH="$HOME/.hexagon"
+# --- Ask for install location if not provided ---
+DEFAULT_PATH="$HOME/hexagon"
+
+if [ -z "$CUSTOM_PATH" ] && [ -t 0 ]; then
+  echo ""
+  read -rp "Where do you want to install? [${DEFAULT_PATH}]: " CUSTOM_PATH
+fi
 
 if [ -n "$CUSTOM_PATH" ]; then
   INSTALL_DIR="${CUSTOM_PATH/#\~/$HOME}"
@@ -95,13 +100,8 @@ echo "  Path:     $AGENT_DIR"
 echo ""
 
 # --- Check for existing agent ---
-if [ -d "$AGENT_DIR/.claude-plugin" ]; then
-  echo "Agent already exists at $AGENT_DIR."
-  read -rp "Continue and update? (y/N): " CONFIRM
-  if [[ ! "${CONFIRM:-}" =~ ^[Yy] ]]; then
-    echo "Aborted."
-    exit 0
-  fi
+if [ -d "$AGENT_DIR" ]; then
+  error "Directory already exists at $AGENT_DIR. Remove it first or choose a different agent name."
 fi
 
 TODAY=$(date +%Y-%m-%d)

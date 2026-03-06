@@ -16,48 +16,39 @@ Three principles: **Compound. Anticipate. Evolve.**
 
 ## Quick Start
 
-### 1. Clone this repository
+### 1. Bootstrap your agent
+
+Clone this repository and open it with Claude Code:
 
 ```bash
 git clone https://github.com/mrap/hexagon-base.git
+cd hexagon-base
+claude
 ```
 
-### 2. Install the skill
-
-Hexagon Base is a Claude Code plugin. A "plugin" is a package of capabilities (skills, commands, hooks) that extends what Claude Code can do.
-
-To install, create a symlink so Claude Code discovers it:
-
-```bash
-mkdir -p ~/.claude/plugins
-ln -sf "$(pwd)/hexagon-base" ~/.claude/plugins/hexagon-base
-```
-
-### 3. Bootstrap your agent
-
-Open Claude Code anywhere and run:
+Then run:
 
 ```
 /hexagon
 ```
 
-The agent asks for a name, creates your workspace at `~/.hexagon/<agent-name>/`, and walks you through a 2-minute setup.
+The wizard asks for an agent name and where to install (defaults to `~/hexagon`). It creates a fully self-contained workspace — no symlinks back to this repo.
 
-Then open your agent workspace:
+### 2. Start your first session
 
 ```bash
-cd ~/.hexagon/<agent-name>
+cd ~/hexagon/<agent-name>
 claude
 ```
 
-Run `/hex-startup` to begin your first session.
+Run `/hex-startup` to begin.
 
 ## What It Creates
 
 When you run `/hexagon`, it creates this workspace:
 
 ```
-~/.hexagon/<agent-name>/
+~/hexagon/<agent-name>/
 ├── CLAUDE.md              ← The agent's brain. All protocols and behaviors.
 ├── todo.md                ← Your priorities and action items.
 ├── teams.json             ← Connected teams (for collaboration).

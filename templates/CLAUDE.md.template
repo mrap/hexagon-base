@@ -76,8 +76,8 @@ bash $AGENT_DIR/tools/scripts/session.sh stop
 ### Environment Paths
 
 Auto-detected by startup.sh:
-- **Linux**: `AGENT_DIR=~/.hexagon/{{AGENT}}`
-- **macOS**: `AGENT_DIR=~/.hexagon/{{AGENT}}`
+- **Linux**: `AGENT_DIR=~/hexagon/{{AGENT}}`
+- **macOS**: `AGENT_DIR=~/hexagon/{{AGENT}}`
 
 Override with `AGENT_DIR` environment variable if installed elsewhere.
 

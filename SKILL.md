@@ -20,13 +20,20 @@ Ask the user:
 
 If the user doesn't have a preference, suggest a name based on their system username.
 
-### 2. Run the bootstrap script
+### 2. Ask for the install location
+
+Ask the user:
+> Where do you want to install your agent? (defaults to ~/hexagon)
+
+### 3. Run the bootstrap script
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh" --agent "<agent-name>"
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh" --agent "<agent-name>" --path "<install-path>"
 ```
 
-This creates the full agent workspace at `~/.hexagon/<agent-name>/` with:
+If the directory already exists, the script will refuse to continue. The user must remove it first or choose a different name.
+
+This creates the full agent workspace at `<install-path>/<agent-name>/` with:
 - CLAUDE.md (agent brain)
 - me/me.md (personal context)
 - todo.md (priorities)
@@ -35,14 +42,14 @@ This creates the full agent workspace at `~/.hexagon/<agent-name>/` with:
 - Session management tools
 - Slash commands (/hex-startup, /hex-save, /hex-shutdown, etc.)
 
-### 3. Tell the user what's next
+### 4. Tell the user what's next
 
 After bootstrap completes, tell the user:
 
-> Your agent is ready at `~/.hexagon/<agent-name>/`.
+> Your agent is ready at `<install-path>/<agent-name>/`.
 >
 > To start your first session:
-> 1. Open a new Claude Code session in that directory: `cd ~/.hexagon/<agent-name> && claude`
+> 1. Open a new Claude Code session in that directory: `cd <install-path>/<agent-name> && claude`
 > 2. Run `/hex-startup` to begin
 > 3. The agent will ask you 3 quick questions to get started
 >
