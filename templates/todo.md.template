@@ -1,0 +1,51 @@
+# Priorities — {{NAME}}
+
+_Last updated: {{DATE}}_
+
+## Now
+
+<!-- What you're actively working on. The agent checks this every session. -->
+
+- [ ] Priority 1
+- [ ] Priority 2
+- [ ] Priority 3
+
+## This Week
+
+<!-- Concrete outcomes for this week. Move to "Now" when you start working on them. -->
+
+- [ ] Item 1
+- [ ] Item 2
+
+## Next Week
+
+<!-- Upcoming items. Review weekly to promote or drop. -->
+
+- [ ] Item 1
+
+## Waiting On Others
+
+<!-- Blocked items. Who, what, and when you last checked. -->
+
+- [ ] Item — waiting on **Person** (last checked: date)
+
+## Backlog
+
+<!-- Good ideas not yet prioritized. Review monthly. -->
+
+- Item 1
+- Item 2
+
+## Monitoring
+
+<!-- Things to keep an eye on. Not actionable yet, but could become urgent. -->
+
+- Signal to watch
+
+## By Project
+
+<!-- Optional: organize items by project when the list grows. -->
+
+### Project Name
+- [ ] Task 1
+- [ ] Task 2
