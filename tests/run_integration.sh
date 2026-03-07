@@ -53,7 +53,7 @@ AGENT_DIR="$TEST_DIR"
 # ═══════════════════════════════════════════════════════════════
 header "Slash Command Discovery"
 
-EXPECTED_COMMANDS="context-save hex-connect-team hex-context-sync hex-create-team hex-save hex-shutdown hex-startup hex-sync"
+EXPECTED_COMMANDS="context-save hex-connect-team hex-context-sync hex-create-team hex-save hex-shutdown hex-startup hex-sync hex-upgrade"
 
 # Check each expected command has a file with valid frontmatter
 for cmd in $EXPECTED_COMMANDS; do

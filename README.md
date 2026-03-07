@@ -34,14 +34,22 @@ Claude reads the project instructions and walks you through setup — asks for a
 
 > **Alternative:** Run the bootstrap directly: `bash scripts/bootstrap.sh`
 
-### 2. Start your first session
+### 2. Add the alias
 
 ```bash
-cd ~/<agent-name>
-claude
+# Add to ~/.bashrc or ~/.zshrc
+alias hex='bash ~/<agent-name>/.claude/scripts/workspace.sh'
 ```
 
-Run `/hex-startup` to begin. The agent will ask you 3 quick questions, then you're off.
+### 3. Launch your workspace
+
+```bash
+hex
+```
+
+This opens a tmux workspace with Claude Code on the left and a live landings dashboard on the right. Run `/hex-startup` in Claude to begin.
+
+> **No tmux?** Just `cd ~/<agent-name> && claude` works too.
 
 ## What It Creates
 
@@ -77,7 +85,7 @@ The installer creates this workspace:
 │
 ├── raw/                   ← Unprocessed input (transcripts, messages, docs).
 ├── landings/              ← Daily outcome targets.
-└── tools/                 ← Scripts, skills, commands, hooks.
+└── .claude/               ← Scripts, skills, commands, hooks.
 ```
 
 ## Architecture
@@ -120,10 +128,36 @@ The system literally gets smarter the more you use it.
 | `/hex-startup` | Start a session. Loads context, checks memory, surfaces action items. On first run, walks through onboarding. |
 | `/hex-save` | Save current session. Parses transcripts, rebuilds memory index. |
 | `/hex-shutdown` | Close session cleanly. Persists unsaved context, updates learnings, deregisters session. |
+| `/hex-upgrade` | Pull latest from hexagon-base. Upgrades scripts, skills, commands, hooks. Preserves your data. |
 | `/context-save` | Persist any unsaved context from the current conversation to files. |
 | `/hex-sync` | Sync with connected teams. Pull shared updates, push local updates. |
 | `/hex-create-team` | Create a new team for collaboration. |
 | `/hex-connect-team` | Join an existing team. |
+
+## Upgrading
+
+### New installs
+
+New installs get `/hex-upgrade` automatically. Just run it:
+
+```
+/hex-upgrade
+```
+
+### Existing installs
+
+If your hexagon was installed before `/hex-upgrade` existed, run this one-time bootstrap from inside your agent directory:
+
+```bash
+git clone --depth 1 https://github.com/mrap/hexagon-base.git /tmp/hexagon-upgrade && \
+  cp /tmp/hexagon-upgrade/dot-claude/scripts/upgrade.sh .claude/scripts/upgrade.sh && \
+  cp /tmp/hexagon-upgrade/dot-claude/commands/hex-upgrade.md .claude/commands/hex-upgrade.md && \
+  chmod +x .claude/scripts/upgrade.sh && \
+  rm -rf /tmp/hexagon-upgrade && \
+  echo "Done. Run /hex-upgrade to pull the latest."
+```
+
+After that, `/hex-upgrade` handles everything going forward.
 
 ## Philosophy
 

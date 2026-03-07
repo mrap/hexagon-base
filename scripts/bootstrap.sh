@@ -98,7 +98,7 @@ fi
 TODAY=$(date +%Y-%m-%d)
 
 # --- Step 1: Create folder structure ---
-echo "[1/5] Creating folder structure..."
+echo "[1/6] Creating folder structure..."
 mkdir -p "$AGENT_DIR"/.sessions
 mkdir -p "$AGENT_DIR"/me/decisions
 mkdir -p "$AGENT_DIR"/raw/{transcripts,messages,calendar,docs}
@@ -109,7 +109,7 @@ mkdir -p "$AGENT_DIR"/landings/weekly
 info "Done."
 
 # --- Step 2: Install .claude/ directory ---
-echo "[2/5] Installing .claude/ directory..."
+echo "[2/6] Installing .claude/ directory..."
 
 if [ -d "$DOT_CLAUDE_DIR" ]; then
   # Single recursive copy — dot-claude/ becomes .claude/
@@ -132,7 +132,7 @@ if [ -d "$DOT_CLAUDE_DIR" ]; then
 fi
 
 # --- Step 3: Generate CLAUDE.md from template ---
-echo "[3/5] Generating CLAUDE.md..."
+echo "[3/6] Generating CLAUDE.md..."
 if [ -f "$TEMPLATES_DIR/CLAUDE.md.template" ]; then
   sed -e "s|{{NAME}}|$NAME|g" \
       -e "s|{{AGENT}}|$AGENT|g" \
@@ -144,7 +144,7 @@ else
 fi
 
 # --- Step 4: Create skeleton files ---
-echo "[4/5] Creating skeleton files..."
+echo "[4/6] Creating skeleton files..."
 
 # todo.md
 if [ -f "$TEMPLATES_DIR/todo.md.template" ]; then
@@ -217,7 +217,7 @@ info "Created evolution/ files"
 info "Done."
 
 # --- Step 5: Verify ---
-echo "[5/5] Verifying..."
+echo "[5/6] Verifying..."
 MISSING=""
 for f in CLAUDE.md todo.md me/me.md me/learnings.md teams.json .claude/settings.json; do
   if [ ! -f "$AGENT_DIR/$f" ]; then
@@ -247,15 +247,74 @@ echo ""
 echo "  Agent:     $AGENT_DIR"
 echo ""
 echo "  Components:"
-echo "    Commands: /hex-startup, /hex-save, /hex-shutdown, /hex-sync, /hex-create-team, /hex-connect-team, /hex-context-sync, /context-save"
+echo "    Commands: /hex-startup, /hex-save, /hex-shutdown, /hex-upgrade, /hex-sync, /hex-create-team, /hex-connect-team, /hex-context-sync, /context-save"
 echo "    Skills:   memory (search, index, health), landings (daily + weekly)"
 echo "    Scripts:  landings-dashboard.sh (tmux pane)"
 echo "    Hooks:    transcript backup on every prompt + session end"
 echo ""
+# --- Step 6: Install shell alias ---
+echo "[6/6] Setting up shell alias..."
+
+ALIAS_LINE="alias hex='bash $AGENT_DIR/.claude/scripts/workspace.sh'"
+ALIAS_ADDED=false
+
+# Detect shell rc file
+if [ -n "${ZSH_VERSION:-}" ] || [ "$(basename "$SHELL")" = "zsh" ]; then
+  RC_FILE="$HOME/.zshrc"
+elif [ -n "${BASH_VERSION:-}" ] || [ "$(basename "$SHELL")" = "bash" ]; then
+  RC_FILE="$HOME/.bashrc"
+else
+  RC_FILE=""
+fi
+
+if [ -n "$RC_FILE" ]; then
+  if [ -f "$RC_FILE" ] && grep -qF "workspace.sh" "$RC_FILE" 2>/dev/null; then
+    info "Shell alias already exists in $RC_FILE"
+    ALIAS_ADDED=true
+  else
+    echo ""
+    read -rp "  Add 'hex' alias to $RC_FILE? [Y/n] " ANSWER
+    ANSWER="${ANSWER:-Y}"
+    if [[ "$ANSWER" =~ ^[Yy] ]]; then
+      echo "" >> "$RC_FILE"
+      echo "# Hexagon" >> "$RC_FILE"
+      echo "$ALIAS_LINE" >> "$RC_FILE"
+      info "Added to $RC_FILE"
+      ALIAS_ADDED=true
+    else
+      info "Skipped. Add manually: $ALIAS_LINE"
+    fi
+  fi
+else
+  info "Could not detect shell. Add manually: $ALIAS_LINE"
+fi
+
+# --- Summary ---
+echo ""
+echo "========================================"
+echo " Setup Complete!"
+echo "========================================"
+echo ""
+echo "  Agent:     $AGENT_DIR"
+echo ""
+echo "  Components:"
+echo "    Commands: /hex-startup, /hex-save, /hex-shutdown, /hex-upgrade, /hex-sync, /hex-create-team, /hex-connect-team, /hex-context-sync, /context-save"
+echo "    Skills:   memory (search, index, health), landings (daily + weekly)"
+echo "    Scripts:  workspace.sh (tmux launcher), landings-dashboard.sh"
+echo "    Hooks:    transcript backup on every prompt + session end"
+echo ""
 echo "  Next steps:"
 echo ""
-echo "    cd \"$AGENT_DIR\" && claude"
+if $ALIAS_ADDED; then
+echo "    source $RC_FILE && hex"
+else
+echo "    alias hex='bash $AGENT_DIR/.claude/scripts/workspace.sh'"
+echo "    hex"
+fi
 echo ""
-echo "  Then run /hex-startup. Your agent will ask 3 quick questions"
-echo "  to get started, then you're off."
+echo "    This launches Claude Code + a live landings dashboard side by side."
+echo "    Run /hex-startup in Claude to begin. Your agent will ask 3 quick"
+echo "    questions, then you're off."
+echo ""
+echo "    (No tmux? That's fine too: cd \"$AGENT_DIR\" && claude)"
 echo ""

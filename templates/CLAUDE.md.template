@@ -92,11 +92,9 @@ bash $AGENT_DIR/.claude/scripts/session.sh stop
 
 ### Environment Paths
 
-Auto-detected by startup.sh:
-- **Linux**: `AGENT_DIR=~/hexagon/{{AGENT}}`
-- **macOS**: `AGENT_DIR=~/hexagon/{{AGENT}}`
+Auto-detected by startup.sh (walks up from script location to find CLAUDE.md).
 
-Override with `AGENT_DIR` environment variable if installed elsewhere.
+Override with `AGENT_DIR` environment variable if needed.
 
 ---
 
@@ -523,6 +521,7 @@ Launch with `HEX_PRIVACY=1` to hide sensitive context during demos or screen sha
 │   │   ├── hex-startup.md       ← /hex-startup — full session init
 │   │   ├── hex-save.md          ← /hex-save — save transcript + index
 │   │   ├── hex-shutdown.md      ← /hex-shutdown — clean session close
+│   │   ├── hex-upgrade.md       ← /hex-upgrade — pull latest from hexagon-base
 │   │   ├── hex-sync.md          ← /hex-sync — sync with teams
 │   │   ├── hex-create-team.md   ← /hex-create-team — create a new team
 │   │   ├── hex-connect-team.md  ← /hex-connect-team — join a team
