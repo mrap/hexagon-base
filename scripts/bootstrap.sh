@@ -88,7 +88,12 @@ else
   INSTALL_DIR="$DEFAULT_PATH"
 fi
 
-AGENT_DIR="$INSTALL_DIR/$AGENT"
+# Don't double-nest if the path already ends with the agent name
+if [[ "$(basename "$INSTALL_DIR")" == "$AGENT" ]]; then
+  AGENT_DIR="$INSTALL_DIR"
+else
+  AGENT_DIR="$INSTALL_DIR/$AGENT"
+fi
 
 echo ""
 echo "========================================"

@@ -296,6 +296,43 @@ eval_bootstrap_edge_cases() {
   else
     fail "--help should exit 0"
   fi
+
+  header "Bootstrap — Path Handling"
+
+  # Path ending with agent name should NOT double-nest
+  NEST_DIR="/tmp/hexagon-nest-eval-$$"
+  OUTPUT=$(bash "$REPO_DIR/scripts/bootstrap.sh" --agent "myagent" --name "Test" --path "$NEST_DIR/myagent" 2>&1)
+  if [ $? -eq 0 ]; then
+    if [ -d "$NEST_DIR/myagent" ] && [ -f "$NEST_DIR/myagent/CLAUDE.md" ]; then
+      pass "path ending with agent name installs to that path (no double-nest)"
+    else
+      fail "path ending with agent name created wrong structure"
+    fi
+    if [ ! -d "$NEST_DIR/myagent/myagent" ]; then
+      pass "no double-nested directory created"
+    else
+      fail "double-nested directory $NEST_DIR/myagent/myagent exists"
+    fi
+  else
+    fail "bootstrap with matching path/agent failed: $OUTPUT"
+  fi
+  rm -rf "$NEST_DIR"
+  rm -f "$HOME/.claude/plugins/hexagon-myagent" 2>/dev/null
+
+  # Path NOT ending with agent name should nest normally
+  NEST_DIR2="/tmp/hexagon-nest-eval2-$$"
+  OUTPUT=$(bash "$REPO_DIR/scripts/bootstrap.sh" --agent "atlas" --name "Test" --path "$NEST_DIR2" 2>&1)
+  if [ $? -eq 0 ]; then
+    if [ -d "$NEST_DIR2/atlas" ] && [ -f "$NEST_DIR2/atlas/CLAUDE.md" ]; then
+      pass "different path/agent name nests correctly"
+    else
+      fail "normal nesting created wrong structure"
+    fi
+  else
+    fail "bootstrap with different path/agent failed: $OUTPUT"
+  fi
+  rm -rf "$NEST_DIR2"
+  rm -f "$HOME/.claude/plugins/hexagon-atlas" 2>/dev/null
 }
 
 # ═══════════════════════════════════════════════════════════════
