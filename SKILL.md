@@ -46,11 +46,12 @@ This creates the full agent workspace at `<install-path>/<agent-name>/` with:
 
 After bootstrap completes, tell the user:
 
-> Your agent is ready at `<install-path>/<agent-name>/`.
+> Your agent is ready! The `hex` command has been added to your shell.
 >
-> To start your first session:
-> 1. Open a new Claude Code session in that directory: `cd <install-path>/<agent-name> && claude`
-> 2. Run `/hex-startup` to begin
-> 3. The agent will ask you 3 quick questions to get started
+> **Open a new terminal and run `hex`**
+>
+> This launches a tmux workspace with Claude Code and a live dashboard. Your agent will start up and ask 3 quick questions to get to know you.
+>
+> (No tmux? You can also run: `cd <install-path>/<agent-name> && claude`, then `/hex-startup`)
 >
 > Your agent gets smarter with every session. It learns how you work, spots patterns, and suggests improvements over time.

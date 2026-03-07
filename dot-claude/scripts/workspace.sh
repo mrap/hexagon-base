@@ -58,7 +58,9 @@ fi
 
 # ─── Create new tmux session ────────────────────────────────────────────────
 # Start session with claude in the main pane
-tmux new-session -d -s "$SESSION_NAME" -c "$AGENT_DIR" "claude '/hex-startup'"
+# NOTE: tmux runs commands via /bin/sh, not the user's interactive shell.
+# Using "zsh -ic" so the user's .zshrc is loaded (aliases, functions, etc).
+tmux new-session -d -s "$SESSION_NAME" -c "$AGENT_DIR" "zsh -ic \"claude '/hex-startup'\""
 
 # Split right pane for dashboard
 tmux split-window -h -t "$SESSION_NAME" -l "$DASH_WIDTH" -c "$AGENT_DIR" \

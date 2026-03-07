@@ -238,20 +238,6 @@ else
   info "All core files present. $CMD_COUNT commands installed."
 fi
 
-# --- Summary ---
-echo ""
-echo "========================================"
-echo " Setup Complete!"
-echo "========================================"
-echo ""
-echo "  Agent:     $AGENT_DIR"
-echo ""
-echo "  Components:"
-echo "    Commands: /hex-startup, /hex-save, /hex-shutdown, /hex-upgrade, /hex-sync, /hex-create-team, /hex-connect-team, /hex-context-sync, /context-save"
-echo "    Skills:   memory (search, index, health), landings (daily + weekly)"
-echo "    Scripts:  landings-dashboard.sh (tmux pane)"
-echo "    Hooks:    transcript backup on every prompt + session end"
-echo ""
 # --- Step 6: Install shell alias ---
 echo "[6/7] Setting up shell alias..."
 
@@ -272,18 +258,11 @@ if [ -n "$RC_FILE" ]; then
     info "Shell alias already exists in $RC_FILE"
     ALIAS_ADDED=true
   else
-    echo ""
-    read -rp "  Add 'hex' alias to $RC_FILE? [Y/n] " ANSWER
-    ANSWER="${ANSWER:-Y}"
-    if [[ "$ANSWER" =~ ^[Yy] ]]; then
-      echo "" >> "$RC_FILE"
-      echo "# Hexagon" >> "$RC_FILE"
-      echo "$ALIAS_LINE" >> "$RC_FILE"
-      info "Added to $RC_FILE"
-      ALIAS_ADDED=true
-    else
-      info "Skipped. Add manually: $ALIAS_LINE"
-    fi
+    echo "" >> "$RC_FILE"
+    echo "# Hexagon" >> "$RC_FILE"
+    echo "$ALIAS_LINE" >> "$RC_FILE"
+    info "Added 'hex' alias to $RC_FILE"
+    ALIAS_ADDED=true
   fi
 else
   info "Could not detect shell. Add manually: $ALIAS_LINE"
@@ -301,23 +280,12 @@ if [ -n "$RC_FILE" ]; then
     info "Claude skip-permissions already configured in $RC_FILE"
     FUNC_ADDED=true
   else
-    echo ""
-    echo "  Hexagon works best when Claude Code runs without permission prompts."
-    echo "  This adds a shell function so 'claude' always passes --dangerously-skip-permissions."
-    echo "  (Aliases don't work in non-interactive shells like tmux. Functions do.)"
-    echo ""
-    read -rp "  Set up auto skip-permissions? [Y/n] " SKIP_ANSWER
-    SKIP_ANSWER="${SKIP_ANSWER:-Y}"
-    if [[ "$SKIP_ANSWER" =~ ^[Yy] ]]; then
-      echo "" >> "$RC_FILE"
-      echo "# Claude Code — skip permission prompts" >> "$RC_FILE"
-      echo "$FUNC_UNALIAS" >> "$RC_FILE"
-      echo "$FUNC_LINE" >> "$RC_FILE"
-      info "Added to $RC_FILE"
-      FUNC_ADDED=true
-    else
-      info "Skipped. Add manually if you want: $FUNC_LINE"
-    fi
+    echo "" >> "$RC_FILE"
+    echo "# Claude Code — skip permission prompts" >> "$RC_FILE"
+    echo "$FUNC_UNALIAS" >> "$RC_FILE"
+    echo "$FUNC_LINE" >> "$RC_FILE"
+    info "Added skip-permissions function to $RC_FILE"
+    FUNC_ADDED=true
   fi
 else
   info "Could not detect shell. Add manually: $FUNC_LINE"
@@ -337,18 +305,18 @@ echo "    Skills:   memory (search, index, health), landings (daily + weekly)"
 echo "    Scripts:  workspace.sh (tmux launcher), landings-dashboard.sh"
 echo "    Hooks:    transcript backup on every prompt + session end"
 echo ""
-echo "  Next steps:"
+echo "  Next step:"
 echo ""
 if $ALIAS_ADDED; then
-echo "    source $RC_FILE && hex"
+echo "    Open a new terminal and run: hex"
 else
-echo "    alias hex='bash $AGENT_DIR/.claude/scripts/workspace.sh'"
-echo "    hex"
+echo "    Add this to your shell config, then open a new terminal:"
+echo "      alias hex='bash $AGENT_DIR/.claude/scripts/workspace.sh'"
+echo "    Then run: hex"
 fi
 echo ""
 echo "    This launches Claude Code + a live landings dashboard side by side."
-echo "    Run /hex-startup in Claude to begin. Your agent will ask 3 quick"
-echo "    questions, then you're off."
+echo "    Your agent will start up and ask 3 quick questions, then you're off."
 echo ""
 echo "    (No tmux? That's fine too: cd \"$AGENT_DIR\" && claude)"
 echo ""

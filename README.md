@@ -30,24 +30,19 @@ Then just say:
 install hexagon
 ```
 
-Claude reads the project instructions and walks you through setup — asks for an agent name and where to install (defaults to `~/hexagon`). It creates a fully self-contained workspace.
+Claude reads the project instructions and walks you through setup — asks for an agent name and where to install (defaults to `~/hexagon`). It creates a fully self-contained workspace and installs the `hex` shell command automatically.
 
 > **Alternative:** Run the bootstrap directly: `bash scripts/bootstrap.sh`
 
-### 2. Add the alias
+### 2. Launch your workspace
 
-```bash
-# Add to ~/.bashrc or ~/.zshrc
-alias hex='bash ~/<agent-name>/.claude/scripts/workspace.sh'
-```
-
-### 3. Launch your workspace
+Open a new terminal, then:
 
 ```bash
 hex
 ```
 
-This opens a tmux workspace with Claude Code on the left and a live landings dashboard on the right. Run `/hex-startup` in Claude to begin.
+This opens a tmux workspace with Claude Code on the left and a live landings dashboard on the right. Your agent starts up and asks 3 quick questions, then you're off.
 
 > **No tmux?** Just `cd ~/<agent-name> && claude` works too.
 

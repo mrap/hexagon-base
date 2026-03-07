@@ -10,9 +10,10 @@ When a user asks to "install hexagon", "set up my agent", "bootstrap", or simila
 2. Ask: **"Where do you want to install?"** (default: `~/<agent-name>`)
 3. Run: `bash scripts/bootstrap.sh --agent "<name>" --path "<path>"`
 4. After bootstrap completes, tell the user:
-   - Exit this Claude session
-   - Open a new session in their workspace: `cd <path> && claude`
-   - Run `/hex-startup` to begin — the agent will ask 3 quick questions to get to know them
+   - **Open a new terminal and run `hex`**
+   - The bootstrap already installed the `hex` alias in their shell config, so a new terminal will have it available
+   - This launches a tmux workspace with Claude Code + a landings dashboard. The agent will start up and ask 3 quick questions to get to know them.
+   - If they don't have tmux, they can alternatively run: `cd <path> && claude`, then `/hex-startup`
 
 ## What This Is
 
