@@ -271,7 +271,7 @@ Hexagon Base is a complete, open-source AI agent framework for Claude Code. 22 f
 
 | Decision | Reasoning |
 |----------|-----------|
-| Default path: ~/.hexagon/ | Universal. Works without Google Drive or any cloud service. |
+| Default path: ~/hexagon | Universal. Works without Google Drive or any cloud service. |
 | Plugin manifest uses full format | Explicit skills/commands/hooks paths for auto-discovery. |
 | Memory DB at tools/memory.db | Keeps all executable artifacts under tools/. |
 | Privacy mode replaces safe mode | Same concept, no corporate branding. HEX_PRIVACY=1 env var. |

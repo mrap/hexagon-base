@@ -9,7 +9,7 @@
 # Auto-detects your name from the system.
 # Only asks one question: what to name your agent.
 
-set -uo pipefail
+set -euo pipefail
 
 # --- Resolve script directory ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -42,9 +42,9 @@ CUSTOM_PATH=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --agent) AGENT="${2:-}"; shift 2 ;;
-    --name) NAME="${2:-}"; shift 2 ;;
-    --path) CUSTOM_PATH="${2:-}"; shift 2 ;;
+    --agent) [[ $# -ge 2 ]] || error "--agent requires a value"; AGENT="$2"; shift 2 ;;
+    --name) [[ $# -ge 2 ]] || error "--name requires a value"; NAME="$2"; shift 2 ;;
+    --path) [[ $# -ge 2 ]] || error "--path requires a value"; CUSTOM_PATH="$2"; shift 2 ;;
     --help|-h)
       echo "Usage: bootstrap.sh [--agent name] [--name 'Full Name'] [--path /install/path]"
       echo ""
@@ -167,9 +167,7 @@ fi
 
 # Hooks
 if [ -d "$PLUGIN_DIR/hooks" ]; then
-  if [ -f "$PLUGIN_DIR/hooks/hooks.json" ]; then
-    cp "$PLUGIN_DIR/hooks/hooks.json" "$AGENT_DIR/tools/hooks/"
-  fi
+  # hooks.json is not copied — plugin.json is the authoritative hook manifest
   if ls "$PLUGIN_DIR/hooks/scripts/"*.sh 1>/dev/null 2>&1; then
     cp "$PLUGIN_DIR/hooks/scripts/"*.sh "$AGENT_DIR/tools/hooks/scripts/"
     chmod +x "$AGENT_DIR/tools/hooks/scripts/"*.sh
@@ -259,9 +257,10 @@ fi
 for efile in observations.md suggestions.md changelog.md metrics.md; do
   TARGET="$AGENT_DIR/evolution/$efile"
   if [ ! -f "$TARGET" ]; then
-    TITLE=$(echo "$efile" | sed 's/.md//' | sed 's/./\U&/')
+    TITLE=$(echo "$efile" | sed 's/\.md$//')
+    TITLE="$(echo "${TITLE:0:1}" | tr '[:lower:]' '[:upper:]')${TITLE:1}"
     cat > "$TARGET" <<EVOFILE
-# ${TITLE^}
+# ${TITLE}
 
 _Part of the improvement engine. See CLAUDE.md for the protocol._
 EVOFILE
@@ -311,7 +310,7 @@ echo "  Linked:    $PLUGIN_LINK"
 echo ""
 echo "  Components:"
 echo "    Skills:   memory (search, index, health)"
-echo "    Commands: /hex-startup, /hex-save, /hex-shutdown, /hex-sync, /context-save"
+echo "    Commands: /hex-startup, /hex-save, /hex-shutdown, /hex-sync, /hex-create-team, /hex-connect-team, /context-save"
 echo "    Hooks:    transcript backup on every prompt + session end"
 echo ""
 echo "  Next steps:"

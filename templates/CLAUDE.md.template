@@ -138,8 +138,8 @@ Every session, observe how {{NAME}} works and record patterns. This is learned t
 Write observations to `me/learnings.md` using this format:
 ```markdown
 ## Communication Style
-- Prefers direct, no hedging. Corrected "might want to consider" to "do this." (2024-03-15)
-- Uses tables for structured data, never bullet-heavy prose. (2024-03-16)
+- Prefers direct, no hedging. Corrected "might want to consider" to "do this." ({{DATE}})
+- Uses tables for structured data, never bullet-heavy prose. ({{DATE}})
 ```
 
 Each observation: what you noticed, evidence, date. Group by category. Update existing entries when patterns strengthen. Don't repeat observations already recorded.

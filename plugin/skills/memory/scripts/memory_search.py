@@ -59,7 +59,10 @@ def search(query: str, top_n: int = 10, file_filter: str = None) -> list:
         sys.exit(1)
 
     conn = sqlite3.connect(str(DB_PATH))
-    fts_query = query.strip()
+    # Sanitize FTS5 special characters to prevent query syntax errors
+    import re
+    sanitized = re.sub(r'["\*\(\){}^\-~]', ' ', query.strip())
+    fts_query = ' '.join(sanitized.split())  # collapse whitespace
 
     sql = """
         SELECT
