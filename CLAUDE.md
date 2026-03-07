@@ -9,7 +9,10 @@ When a user asks to "install hexagon", "set up my agent", "bootstrap", or simila
 1. Ask: **"What would you like to name your agent?"** (becomes the folder name, e.g., "atlas", "friday")
 2. Ask: **"Where do you want to install?"** (default: `~/hexagon`)
 3. Run: `bash scripts/bootstrap.sh --agent "<name>" --path "<path>"`
-4. Tell them: `cd <path>/<name> && claude` then run `/hex-startup`
+4. After bootstrap completes, read the workspace path from its output and tell the user:
+   - Exit this Claude session
+   - Open a new session in their workspace: `cd <workspace-path> && claude`
+   - Run `/hex-startup` to begin — the agent will ask 3 quick questions to get to know them
 
 ## What This Is
 
