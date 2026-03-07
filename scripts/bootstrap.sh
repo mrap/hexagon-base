@@ -52,7 +52,7 @@ while [[ $# -gt 0 ]]; do
       echo "Options:"
       echo "  --agent    Agent folder name (e.g., atlas, friday)"
       echo "  --name     Override auto-detected full name"
-      echo "  --path     Install path (default: ~/hexagon)"
+      echo "  --path     Install path (default: ~/<agent-name>)"
       echo ""
       echo "Auto-detects your full name from the system."
       echo "If --agent is not provided, you'll be prompted."
@@ -75,26 +75,12 @@ if [ -z "$AGENT" ]; then
   error "Agent name is required."
 fi
 
-# --- Ask for install location if not provided ---
-DEFAULT_PATH="$HOME/hexagon"
-
-if [ -z "$CUSTOM_PATH" ] && [ -t 0 ]; then
-  echo ""
-  read -rp "Where do you want to install? [${DEFAULT_PATH}]: " CUSTOM_PATH
+# --- Determine install directory ---
+if [ -z "$CUSTOM_PATH" ]; then
+  CUSTOM_PATH="$HOME/$AGENT"
 fi
 
-if [ -n "$CUSTOM_PATH" ]; then
-  INSTALL_DIR="${CUSTOM_PATH/#\~/$HOME}"
-else
-  INSTALL_DIR="$DEFAULT_PATH"
-fi
-
-# Don't double-nest if the path already ends with the agent name
-if [[ "$(basename "$INSTALL_DIR")" == "$AGENT" ]]; then
-  AGENT_DIR="$INSTALL_DIR"
-else
-  AGENT_DIR="$INSTALL_DIR/$AGENT"
-fi
+AGENT_DIR="${CUSTOM_PATH/#\~/$HOME}"
 
 echo ""
 echo "========================================"
@@ -128,18 +114,13 @@ info "Done."
 # --- Step 2: Set up .claude/ directory ---
 echo "[2/6] Setting up .claude/ directory..."
 
-# Copy pre-built .claude/ directory (commands, etc.)
+# Copy pre-built .claude/ directory (commands, settings)
 if [ -d "$DOT_CLAUDE_DIR" ]; then
   cp -r "$DOT_CLAUDE_DIR/commands" "$AGENT_DIR/.claude/"
+  cp "$DOT_CLAUDE_DIR/settings.json" "$AGENT_DIR/.claude/settings.json"
   CMDS=$(ls "$DOT_CLAUDE_DIR/commands/"*.md 2>/dev/null | xargs -n1 basename | sed 's/.md//' | tr '\n' ', ' | sed 's/,$//')
   info "Installed commands: $CMDS"
-fi
-
-# Generate settings.json from template (substitutes AGENT_DIR for hook paths)
-if [ -f "$DOT_CLAUDE_DIR/settings.json.template" ]; then
-  sed -e "s|{{AGENT_DIR}}|$AGENT_DIR|g" \
-      "$DOT_CLAUDE_DIR/settings.json.template" > "$AGENT_DIR/.claude/settings.json"
-  info "Created .claude/settings.json with hooks"
+  info "Installed settings.json with hooks"
 fi
 
 # --- Step 3: Install tools ---

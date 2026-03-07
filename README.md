@@ -37,7 +37,7 @@ Claude reads the project instructions and walks you through setup — asks for a
 ### 2. Start your first session
 
 ```bash
-cd ~/hexagon/<agent-name>
+cd ~/<agent-name>
 claude
 ```
 
@@ -48,7 +48,7 @@ Run `/hex-startup` to begin. The agent will ask you 3 quick questions, then you'
 The installer creates this workspace:
 
 ```
-~/hexagon/<agent-name>/
+~/<agent-name>/
 ├── CLAUDE.md              ← The agent's brain. All protocols and behaviors.
 ├── todo.md                ← Your priorities and action items.
 ├── teams.json             ← Connected teams (for collaboration).

@@ -7,11 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 When a user asks to "install hexagon", "set up my agent", "bootstrap", or similar:
 
 1. Ask: **"What would you like to name your agent?"** (becomes the folder name, e.g., "atlas", "friday")
-2. Ask: **"Where do you want to install?"** (default: `~/hexagon`)
+2. Ask: **"Where do you want to install?"** (default: `~/<agent-name>`)
 3. Run: `bash scripts/bootstrap.sh --agent "<name>" --path "<path>"`
-4. After bootstrap completes, read the workspace path from its output and tell the user:
+4. After bootstrap completes, tell the user:
    - Exit this Claude session
-   - Open a new session in their workspace: `cd <workspace-path> && claude`
+   - Open a new session in their workspace: `cd <path> && claude`
    - Run `/hex-startup` to begin — the agent will ask 3 quick questions to get to know them
 
 ## What This Is

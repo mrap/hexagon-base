@@ -132,7 +132,7 @@ else
   fail "bootstrap failed: $OUTPUT"
 fi
 
-AGENT_DIR="$TEST_DIR/wiztest"
+AGENT_DIR="$TEST_DIR"
 
 # Verify the workspace is functional
 if [ -f "$AGENT_DIR/CLAUDE.md" ] && [ -f "$AGENT_DIR/.claude/settings.json" ]; then
@@ -199,22 +199,22 @@ if [ "$LIVE_MODE" = true ]; then
   fi
 
   # Check if the workspace was actually created
-  if [ -d "$TEST_DIR/wiztest" ]; then
-    pass "workspace created at $TEST_DIR/wiztest"
+  if [ -d "$TEST_DIR" ]; then
+    pass "workspace created at $TEST_DIR"
 
-    if [ -f "$TEST_DIR/wiztest/CLAUDE.md" ]; then
+    if [ -f "$TEST_DIR/CLAUDE.md" ]; then
       pass "workspace has CLAUDE.md"
     else
       fail "workspace missing CLAUDE.md"
     fi
 
-    if [ -f "$TEST_DIR/wiztest/.claude/settings.json" ]; then
+    if [ -f "$TEST_DIR/.claude/settings.json" ]; then
       pass "workspace has plugin manifest"
     else
       fail "workspace missing plugin manifest"
     fi
 
-    if [ -f "$TEST_DIR/wiztest/.claude/commands/hex-startup.md" ]; then
+    if [ -f "$TEST_DIR/.claude/commands/hex-startup.md" ]; then
       pass "/hex-startup available in created workspace"
     else
       fail "/hex-startup missing from workspace"
