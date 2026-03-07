@@ -53,22 +53,39 @@ The script handles:
 - `--step NAME` — Run a single step (env, session, transcripts, index, health, integrations, evolution)
 - `--status` — Show what's been done today without running anything
 
-**After startup**, load context manually:
-- Read `todo.md` and `me/learnings.md` for current priorities
-- Check for meetings and write prep notes
-- Surface overdue or time-sensitive items
-- Remind {{NAME}}: "Ready. Here's what needs attention today."
+**After startup**, check if this is a first-time user or a returning user:
+
+#### First-Time Onboarding
+
+Read `me/me.md`. If it still contains placeholder text (e.g., "Your name here"), this is a first-time user. Ask exactly these three questions, nothing more:
+
+1. "What's your name?"
+2. "What do you do?" (role, one line)
+3. "What are your top 3 priorities right now?"
+
+Write answers to `me/me.md` immediately. Replace the placeholder text.
+
+Then say: "You're set up. I'll learn more about how you work over the next few sessions. For now, let's get to work. What's on your mind?"
+
+#### Returning User
+
+1. Read `todo.md` for current priorities
+2. Read `me/learnings.md` for recent observations
+3. Check `landings/` for today's landing targets (if any)
+4. Check `evolution/suggestions.md` for pending improvement proposals
+5. If today is a workday and no landings exist for today, propose 3-5 landing targets based on todo.md
+
+Surface a brief summary: "Ready. Here's what needs attention today:" followed by top priorities, meetings to prep, overdue items, and any pending improvement suggestions.
 
 ### Shutdown
 
-Run `/hex-shutdown` to close cleanly. This:
+When the user says "shut down", "end session", "hex shutdown", or similar:
 1. Final distill pass (persist any unsaved context)
 2. Update learnings.md with session observations
 3. Save transcript
 4. Rebuild memory index
 5. Deregister session
 
-If `/hex-shutdown` is unavailable, at minimum run:
 ```bash
 bash $AGENT_DIR/tools/scripts/session.sh stop
 ```

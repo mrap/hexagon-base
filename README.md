@@ -41,7 +41,7 @@ cd ~/hexagon/<agent-name>
 claude
 ```
 
-Run `/hex-startup` to begin.
+Run `/hex-startup` to begin. The agent will ask you 3 quick questions, then you're off.
 
 ## What It Creates
 

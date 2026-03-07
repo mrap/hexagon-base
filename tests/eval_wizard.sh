@@ -85,7 +85,7 @@ else
 fi
 
 # Must tell user what to do after install
-if grep -qi "hex-startup\|cd.*claude\|next" "$CLAUDE_MD"; then
+if grep -qi "cd.*claude\|exit.*session\|new.*session\|workspace" "$CLAUDE_MD"; then
   pass "CLAUDE.md includes post-install instructions"
 else
   fail "CLAUDE.md missing post-install instructions"
@@ -135,7 +135,7 @@ fi
 AGENT_DIR="$TEST_DIR/wiztest"
 
 # Verify the workspace is functional
-if [ -f "$AGENT_DIR/CLAUDE.md" ] && [ -f "$AGENT_DIR/.claude-plugin/plugin.json" ]; then
+if [ -f "$AGENT_DIR/CLAUDE.md" ] && [ -f "$AGENT_DIR/.claude/settings.json" ]; then
   pass "workspace has CLAUDE.md and plugin manifest"
 else
   fail "workspace missing core files"
@@ -143,14 +143,14 @@ fi
 
 # Verify the post-install instruction works: "cd <path>/<name> && claude"
 # (we can't run claude, but we can verify the directory exists and is plugin-ready)
-if [ -d "$AGENT_DIR" ] && [ -f "$AGENT_DIR/.claude-plugin/plugin.json" ]; then
+if [ -d "$AGENT_DIR" ] && [ -f "$AGENT_DIR/.claude/settings.json" ]; then
   pass "workspace is ready for 'cd $AGENT_DIR && claude'"
 else
   fail "workspace not ready for claude"
 fi
 
 # Verify /hex-startup would be available (command file exists)
-if [ -f "$AGENT_DIR/tools/commands/hex-startup.md" ]; then
+if [ -f "$AGENT_DIR/.claude/commands/hex-startup.md" ]; then
   pass "/hex-startup command available in workspace"
 else
   fail "/hex-startup command missing from workspace"
@@ -208,13 +208,13 @@ if [ "$LIVE_MODE" = true ]; then
       fail "workspace missing CLAUDE.md"
     fi
 
-    if [ -f "$TEST_DIR/wiztest/.claude-plugin/plugin.json" ]; then
+    if [ -f "$TEST_DIR/wiztest/.claude/settings.json" ]; then
       pass "workspace has plugin manifest"
     else
       fail "workspace missing plugin manifest"
     fi
 
-    if [ -f "$TEST_DIR/wiztest/tools/commands/hex-startup.md" ]; then
+    if [ -f "$TEST_DIR/wiztest/.claude/commands/hex-startup.md" ]; then
       pass "/hex-startup available in created workspace"
     else
       fail "/hex-startup missing from workspace"

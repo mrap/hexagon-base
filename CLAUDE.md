@@ -27,28 +27,28 @@ The created workspace has no symlinks back to this repo. Everything is copied in
 1. User asks to install/set up their agent
 2. Claude asks for agent name and install location
 3. `scripts/bootstrap.sh` creates the full workspace:
-   - Copies plugin components (skills, commands, hooks, scripts) into `tools/`
+   - Copies `dot-claude/` into `.claude/` (commands, settings template)
+   - Generates `.claude/settings.json` from template with hook paths
+   - Copies tools (scripts, skills, hooks) into `tools/`
    - Generates `CLAUDE.md` from `templates/CLAUDE.md.template` with variable substitution (`{{NAME}}`, `{{AGENT}}`, `{{DATE}}`)
    - Creates skeleton files from templates (`me.md`, `todo.md`)
-   - Creates `.claude-plugin/plugin.json` manifest for auto-discovery
-   - Links the workspace to `~/.claude/plugins/` for Claude Code to find it
 
 ### Key Directories
 
+- **`dot-claude/`** — Pre-built `.claude/` directory copied into workspace:
+  - `commands/` — Slash command definitions (markdown files with YAML frontmatter)
+  - `settings.json.template` — Settings template with `{{AGENT_DIR}}` placeholder for hook paths
 - **`templates/`** — Templates with `{{VAR}}` placeholders, processed by `bootstrap.sh` via `sed`
 - **`scripts/`** — Bootstrap script only. Not copied into agent workspace.
 - **`plugin/`** — Everything that gets copied into the agent's `tools/` directory:
-  - `commands/` — Slash command definitions (markdown files with YAML frontmatter)
-  - `hooks/` — Event hooks (hooks.json + shell scripts)
+  - `hooks/` — Event hook scripts
   - `scripts/` — Runtime scripts (startup.sh, session.sh, parse_transcripts.py)
   - `skills/memory/` — Memory system (SQLite FTS5 indexer, search, health check)
+- **`tests/`** — Eval suite (run_evals.sh, eval_wizard.sh)
 
-### Plugin System
+### How It Works
 
-Claude Code plugins are directories with `.claude-plugin/plugin.json`. The manifest declares:
-- `skills` — directories containing SKILL.md files
-- `commands` — directories containing slash command `.md` files
-- `hooks` — event handlers (UserPromptSubmit, Stop) that run shell scripts
+Claude Code natively reads `.claude/commands/` for slash commands and `.claude/settings.json` for hooks. No plugin manifest or marketplace install needed — the user just runs `claude` in the workspace and everything works.
 
 ### Memory System (Python, stdlib only)
 

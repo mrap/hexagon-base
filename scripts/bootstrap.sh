@@ -16,6 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEMPLATES_DIR="$SKILL_DIR/templates"
 PLUGIN_DIR="$SKILL_DIR/plugin"
+DOT_CLAUDE_DIR="$SKILL_DIR/dot-claude"
 
 # --- Helpers ---
 info()  { echo "  $1"; }
@@ -112,46 +113,37 @@ fi
 TODAY=$(date +%Y-%m-%d)
 
 # --- Step 1: Create folder structure ---
-echo "[1/7] Creating folder structure..."
-mkdir -p "$AGENT_DIR"/{.claude-plugin,.sessions}
+echo "[1/6] Creating folder structure..."
+mkdir -p "$AGENT_DIR"/.claude/commands
+mkdir -p "$AGENT_DIR"/.sessions
 mkdir -p "$AGENT_DIR"/me/decisions
 mkdir -p "$AGENT_DIR"/raw/{transcripts,messages,calendar,docs}
 mkdir -p "$AGENT_DIR"/people
 mkdir -p "$AGENT_DIR"/projects
 mkdir -p "$AGENT_DIR"/evolution
 mkdir -p "$AGENT_DIR"/landings
-mkdir -p "$AGENT_DIR"/tools/{scripts,skills/memory/{scripts,references},commands,hooks/scripts,templates}
+mkdir -p "$AGENT_DIR"/tools/{scripts,skills/memory/{scripts,references},hooks/scripts}
 info "Done."
 
-# --- Step 2: Create plugin manifest ---
-echo "[2/7] Creating plugin manifest..."
-cat > "$AGENT_DIR/.claude-plugin/plugin.json" <<PLUGIN
-{
-  "name": "${AGENT}-agent",
-  "version": "1.0.0",
-  "description": "Personal AI agent for ${NAME}",
-  "skills": ["./tools/skills/"],
-  "commands": ["./tools/commands/"],
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "type": "command",
-        "command": "bash \${CLAUDE_PLUGIN_ROOT}/tools/hooks/scripts/backup_session.sh"
-      }
-    ],
-    "Stop": [
-      {
-        "type": "command",
-        "command": "bash \${CLAUDE_PLUGIN_ROOT}/tools/hooks/scripts/backup_session.sh"
-      }
-    ]
-  }
-}
-PLUGIN
-info "Created .claude-plugin/plugin.json"
+# --- Step 2: Set up .claude/ directory ---
+echo "[2/6] Setting up .claude/ directory..."
 
-# --- Step 3: Install plugin components ---
-echo "[3/7] Installing plugin components..."
+# Copy pre-built .claude/ directory (commands, etc.)
+if [ -d "$DOT_CLAUDE_DIR" ]; then
+  cp -r "$DOT_CLAUDE_DIR/commands" "$AGENT_DIR/.claude/"
+  CMDS=$(ls "$DOT_CLAUDE_DIR/commands/"*.md 2>/dev/null | xargs -n1 basename | sed 's/.md//' | tr '\n' ', ' | sed 's/,$//')
+  info "Installed commands: $CMDS"
+fi
+
+# Generate settings.json from template (substitutes AGENT_DIR for hook paths)
+if [ -f "$DOT_CLAUDE_DIR/settings.json.template" ]; then
+  sed -e "s|{{AGENT_DIR}}|$AGENT_DIR|g" \
+      "$DOT_CLAUDE_DIR/settings.json.template" > "$AGENT_DIR/.claude/settings.json"
+  info "Created .claude/settings.json with hooks"
+fi
+
+# --- Step 3: Install tools ---
+echo "[3/6] Installing tools..."
 
 # Skills: memory system
 if [ -d "$PLUGIN_DIR/skills/memory" ]; then
@@ -163,16 +155,8 @@ if [ -d "$PLUGIN_DIR/skills/memory" ]; then
   info "Installed memory skill"
 fi
 
-# Commands
-if [ -d "$PLUGIN_DIR/commands" ]; then
-  cp "$PLUGIN_DIR/commands/"*.md "$AGENT_DIR/tools/commands/" 2>/dev/null || true
-  CMDS=$(ls "$PLUGIN_DIR/commands/"*.md 2>/dev/null | xargs -n1 basename | sed 's/.md//' | tr '\n' ', ' | sed 's/,$//')
-  info "Installed commands: $CMDS"
-fi
-
-# Hooks
+# Hook scripts
 if [ -d "$PLUGIN_DIR/hooks" ]; then
-  # hooks.json is not copied — plugin.json is the authoritative hook manifest
   if ls "$PLUGIN_DIR/hooks/scripts/"*.sh 1>/dev/null 2>&1; then
     cp "$PLUGIN_DIR/hooks/scripts/"*.sh "$AGENT_DIR/tools/hooks/scripts/"
     chmod +x "$AGENT_DIR/tools/hooks/scripts/"*.sh
@@ -191,7 +175,7 @@ fi
 info "Done."
 
 # --- Step 4: Generate CLAUDE.md from template ---
-echo "[4/7] Generating CLAUDE.md..."
+echo "[4/6] Generating CLAUDE.md..."
 if [ -f "$TEMPLATES_DIR/CLAUDE.md.template" ]; then
   sed -e "s|{{NAME}}|$NAME|g" \
       -e "s|{{AGENT}}|$AGENT|g" \
@@ -203,7 +187,7 @@ else
 fi
 
 # --- Step 5: Create skeleton files ---
-echo "[5/7] Creating skeleton files..."
+echo "[5/6] Creating skeleton files..."
 
 # todo.md
 if [ -f "$TEMPLATES_DIR/todo.md.template" ]; then
@@ -275,32 +259,26 @@ info "Created evolution/ files"
 
 info "Done."
 
-# --- Step 6: Link plugin for auto-discovery ---
-echo "[6/7] Linking plugin..."
-PLUGIN_LINK="$HOME/.claude/plugins/hexagon-${AGENT}"
-mkdir -p "$HOME/.claude/plugins"
-
-if [ -L "$PLUGIN_LINK" ]; then
-  rm "$PLUGIN_LINK"
-fi
-
-ln -sf "$AGENT_DIR" "$PLUGIN_LINK"
-info "Linked $AGENT_DIR -> $PLUGIN_LINK"
-
-# --- Step 7: Verify ---
-echo "[7/7] Verifying..."
+# --- Step 6: Verify ---
+echo "[6/6] Verifying..."
 MISSING=""
-for f in CLAUDE.md todo.md me/me.md me/learnings.md teams.json .claude-plugin/plugin.json; do
+for f in CLAUDE.md todo.md me/me.md me/learnings.md teams.json .claude/settings.json; do
   if [ ! -f "$AGENT_DIR/$f" ]; then
     MISSING="$MISSING  - $f\n"
   fi
 done
 
+# Check that commands were installed
+CMD_COUNT=$(ls "$AGENT_DIR/.claude/commands/"*.md 2>/dev/null | wc -l)
+if [ "$CMD_COUNT" -eq 0 ]; then
+  MISSING="$MISSING  - .claude/commands/ (no commands)\n"
+fi
+
 if [ -n "$MISSING" ]; then
   warn "Some files are missing:"
   echo -e "$MISSING"
 else
-  info "All core files present."
+  info "All core files present. $CMD_COUNT commands installed."
 fi
 
 # --- Summary ---
@@ -310,12 +288,10 @@ echo " Setup Complete!"
 echo "========================================"
 echo ""
 echo "  Agent:     $AGENT_DIR"
-echo "  Plugin:    ${AGENT}-agent v1.0.0"
-echo "  Linked:    $PLUGIN_LINK"
 echo ""
 echo "  Components:"
-echo "    Skills:   memory (search, index, health)"
 echo "    Commands: /hex-startup, /hex-save, /hex-shutdown, /hex-sync, /hex-create-team, /hex-connect-team, /context-save"
+echo "    Skills:   memory (search, index, health)"
 echo "    Hooks:    transcript backup on every prompt + session end"
 echo ""
 echo "  Next steps:"

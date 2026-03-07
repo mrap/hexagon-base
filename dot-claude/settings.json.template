@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "command": "bash {{AGENT_DIR}}/tools/hooks/scripts/backup_session.sh"
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "bash {{AGENT_DIR}}/tools/hooks/scripts/backup_session.sh"
+      }
+    ]
+  }
+}

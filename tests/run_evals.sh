@@ -80,7 +80,7 @@ eval_bootstrap() {
 
   # --- Core files ---
   header "Bootstrap — Core Files"
-  for f in CLAUDE.md todo.md me/me.md me/learnings.md teams.json .claude-plugin/plugin.json; do
+  for f in CLAUDE.md todo.md me/me.md me/learnings.md teams.json .claude/settings.json; do
     if [ -f "$AGENT_DIR/$f" ]; then
       pass "exists: $f"
     else
@@ -90,7 +90,7 @@ eval_bootstrap() {
 
   # --- Directory structure ---
   header "Bootstrap — Directory Structure"
-  for d in .sessions me/decisions raw/transcripts raw/messages raw/calendar raw/docs people projects evolution landings tools/scripts tools/skills/memory/scripts tools/commands tools/hooks/scripts; do
+  for d in .sessions .claude/commands me/decisions raw/transcripts raw/messages raw/calendar raw/docs people projects evolution landings tools/scripts tools/skills/memory/scripts tools/hooks/scripts; do
     if [ -d "$AGENT_DIR/$d" ]; then
       pass "dir exists: $d"
     else
@@ -145,25 +145,25 @@ eval_bootstrap() {
     pass "no {{VAR}} placeholders remain"
   fi
 
-  # --- Plugin manifest ---
-  header "Bootstrap — Plugin Manifest"
-  if python3 -c "import json; json.load(open('$AGENT_DIR/.claude-plugin/plugin.json'))" 2>/dev/null; then
-    pass "plugin.json is valid JSON"
+  # --- .claude/ directory ---
+  header "Bootstrap — .claude/ Directory"
+  if python3 -c "import json; json.load(open('$AGENT_DIR/.claude/settings.json'))" 2>/dev/null; then
+    pass ".claude/settings.json is valid JSON"
   else
-    fail "plugin.json is valid JSON"
+    fail ".claude/settings.json is valid JSON"
   fi
 
-  if grep -q "\"${AGENT}-agent\"" "$AGENT_DIR/.claude-plugin/plugin.json"; then
-    pass "plugin.json has correct agent name"
+  if grep -q "hooks" "$AGENT_DIR/.claude/settings.json"; then
+    pass ".claude/settings.json has hooks configured"
   else
-    fail "plugin.json has correct agent name"
+    fail ".claude/settings.json missing hooks"
   fi
 
-  # --- Plugin components ---
-  header "Bootstrap — Plugin Components"
+  # --- Commands in .claude/commands/ ---
+  header "Bootstrap — Slash Commands"
   EXPECTED_COMMANDS="context-save hex-connect-team hex-create-team hex-save hex-shutdown hex-startup hex-sync"
   for cmd in $EXPECTED_COMMANDS; do
-    if [ -f "$AGENT_DIR/tools/commands/${cmd}.md" ]; then
+    if [ -f "$AGENT_DIR/.claude/commands/${cmd}.md" ]; then
       pass "command installed: $cmd"
     else
       fail "command installed: $cmd"
@@ -196,26 +196,11 @@ eval_bootstrap() {
     fail "hook script is executable"
   fi
 
-  # hooks.json should NOT be copied (plugin.json is authoritative)
+  # hooks.json should NOT be in workspace
   if [ ! -f "$AGENT_DIR/tools/hooks/hooks.json" ]; then
-    pass "hooks.json not copied (plugin.json is authoritative)"
+    pass "no stale hooks.json in tools/"
   else
-    fail "hooks.json should not be copied"
-  fi
-
-  # --- Plugin symlink ---
-  header "Bootstrap — Plugin Symlink"
-  LINK="$HOME/.claude/plugins/hexagon-$AGENT"
-  if [ -L "$LINK" ]; then
-    pass "plugin symlink exists"
-    TARGET=$(readlink "$LINK")
-    if [ "$TARGET" = "$AGENT_DIR" ]; then
-      pass "symlink points to correct directory"
-    else
-      fail "symlink target: expected $AGENT_DIR got $TARGET"
-    fi
-  else
-    fail "plugin symlink exists at $LINK"
+    fail "stale hooks.json found in tools/"
   fi
 
   # --- No back-references to seed repo ---
@@ -491,42 +476,34 @@ eval_functional() {
     return
   fi
 
-  # --- Plugin manifest declares valid paths ---
-  header "Functional — Plugin Manifest Paths"
+  # --- .claude/ directory has valid structure ---
+  header "Functional — .claude/ Directory"
 
-  # skills path exists
-  SKILLS_PATH=$(python3 -c "import json; d=json.load(open('$AGENT_DIR/.claude-plugin/plugin.json')); print(d['skills'][0])" 2>/dev/null)
-  if [ -d "$AGENT_DIR/$SKILLS_PATH" ]; then
-    pass "plugin.json skills path exists: $SKILLS_PATH"
-  else
-    fail "plugin.json skills path invalid: $SKILLS_PATH"
-  fi
-
-  # commands path exists
-  CMDS_PATH=$(python3 -c "import json; d=json.load(open('$AGENT_DIR/.claude-plugin/plugin.json')); print(d['commands'][0])" 2>/dev/null)
-  if [ -d "$AGENT_DIR/$CMDS_PATH" ]; then
-    pass "plugin.json commands path exists: $CMDS_PATH"
-  else
-    fail "plugin.json commands path invalid: $CMDS_PATH"
-  fi
-
-  # hook script path resolves (after replacing ${CLAUDE_PLUGIN_ROOT})
+  # settings.json has hooks pointing to real scripts
   HOOK_CMD=$(python3 -c "
 import json
-d=json.load(open('$AGENT_DIR/.claude-plugin/plugin.json'))
+d=json.load(open('$AGENT_DIR/.claude/settings.json'))
 print(d['hooks']['UserPromptSubmit'][0]['command'])
 " 2>/dev/null)
-  HOOK_SCRIPT=$(echo "$HOOK_CMD" | sed "s|\\\${CLAUDE_PLUGIN_ROOT}|$AGENT_DIR|" | awk '{print $2}')
+  HOOK_SCRIPT=$(echo "$HOOK_CMD" | awk '{print $2}')
   if [ -f "$HOOK_SCRIPT" ]; then
     pass "hook script path resolves: $HOOK_SCRIPT"
   else
     fail "hook script path invalid: $HOOK_SCRIPT"
   fi
 
+  # commands directory has files
+  CMD_COUNT=$(ls "$AGENT_DIR/.claude/commands/"*.md 2>/dev/null | wc -l)
+  if [ "$CMD_COUNT" -gt 0 ]; then
+    pass ".claude/commands/ has $CMD_COUNT commands"
+  else
+    fail ".claude/commands/ is empty"
+  fi
+
   # --- Command files have valid YAML frontmatter ---
   header "Functional — Command Frontmatter"
 
-  for cmd_file in "$AGENT_DIR"/tools/commands/*.md; do
+  for cmd_file in "$AGENT_DIR"/.claude/commands/*.md; do
     CMD_NAME=$(basename "$cmd_file" .md)
     # Check for YAML frontmatter (starts with ---, has name: and description:, ends with ---)
     if head -1 "$cmd_file" | grep -q "^---$"; then
