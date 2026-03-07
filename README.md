@@ -18,21 +18,21 @@ Three principles: **Compound. Anticipate. Evolve.**
 
 ### 1. Bootstrap your agent
 
-Clone this repository and open it with Claude Code:
-
 ```bash
 git clone https://github.com/mrap/hexagon-base.git
 cd hexagon-base
 claude
 ```
 
-Then run:
+Then just say:
 
 ```
-/hexagon
+install hexagon
 ```
 
-The wizard asks for an agent name and where to install (defaults to `~/hexagon`). It creates a fully self-contained workspace — no symlinks back to this repo.
+Claude reads the project instructions and walks you through setup — asks for an agent name and where to install (defaults to `~/hexagon`). It creates a fully self-contained workspace.
+
+> **Alternative:** Run the bootstrap directly: `bash scripts/bootstrap.sh`
 
 ### 2. Start your first session
 
@@ -45,7 +45,7 @@ Run `/hex-startup` to begin.
 
 ## What It Creates
 
-When you run `/hexagon`, it creates this workspace:
+The installer creates this workspace:
 
 ```
 ~/hexagon/<agent-name>/

@@ -2,9 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Installation (for users)
+
+When a user asks to "install hexagon", "set up my agent", "bootstrap", or similar:
+
+1. Ask: **"What would you like to name your agent?"** (becomes the folder name, e.g., "atlas", "friday")
+2. Ask: **"Where do you want to install?"** (default: `~/hexagon`)
+3. Run: `bash scripts/bootstrap.sh --agent "<name>" --path "<path>"`
+4. Tell them: `cd <path>/<name> && claude` then run `/hex-startup`
+
 ## What This Is
 
-Hexagon Base is a Claude Code **plugin** — a seed repository that bootstraps a persistent, self-improving AI agent workspace. This repo is not the agent itself; it's the installer. Running `/hexagon` (the SKILL.md) creates a fully independent agent workspace at a user-chosen directory (default: `~/hexagon`).
+Hexagon Base is a seed repository that bootstraps a persistent, self-improving AI agent workspace. This repo is not the agent itself; it's the installer. Running `bash scripts/bootstrap.sh` creates a fully independent agent workspace at a user-chosen directory (default: `~/hexagon`).
 
 The created workspace has no symlinks back to this repo. Everything is copied into the target directory.
 
@@ -12,8 +21,8 @@ The created workspace has no symlinks back to this repo. Everything is copied in
 
 ### Bootstrap Flow
 
-1. User runs `/hexagon` in Claude Code (triggers SKILL.md)
-2. SKILL.md prompts for agent name and install location
+1. User asks to install/set up their agent
+2. Claude asks for agent name and install location
 3. `scripts/bootstrap.sh` creates the full workspace:
    - Copies plugin components (skills, commands, hooks, scripts) into `tools/`
    - Generates `CLAUDE.md` from `templates/CLAUDE.md.template` with variable substitution (`{{NAME}}`, `{{AGENT}}`, `{{DATE}}`)

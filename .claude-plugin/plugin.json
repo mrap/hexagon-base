@@ -1,6 +1,0 @@
-{
-  "name": "hexagon-base",
-  "version": "1.0.0",
-  "description": "Bootstrap a personal AI agent workspace",
-  "skills": ["./"]
-}

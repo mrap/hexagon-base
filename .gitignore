@@ -1,5 +1,4 @@
 .claude/
-!.claude-plugin/
 __pycache__/
 *.pyc
 *.pyo
