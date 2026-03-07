@@ -119,7 +119,7 @@ if [ -d "$DOT_CLAUDE_DIR" ]; then
   # Substitute template vars in commands and skills
   find "$AGENT_DIR/.claude" -name "*.md" -type f | while read -r file; do
     if grep -q '{{NAME}}\|{{AGENT}}\|{{DATE}}' "$file" 2>/dev/null; then
-      sed -i'' -e "s|{{NAME}}|$NAME|g" -e "s|{{AGENT}}|$AGENT|g" -e "s|{{DATE}}|$TODAY|g" "$file"
+      sed -e "s|{{NAME}}|$NAME|g" -e "s|{{AGENT}}|$AGENT|g" -e "s|{{DATE}}|$TODAY|g" "$file" > "$file.tmp" && mv "$file.tmp" "$file"
     fi
   done
 
