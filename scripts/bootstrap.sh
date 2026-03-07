@@ -107,8 +107,8 @@ mkdir -p "$AGENT_DIR"/raw/{transcripts,messages,calendar,docs}
 mkdir -p "$AGENT_DIR"/people
 mkdir -p "$AGENT_DIR"/projects
 mkdir -p "$AGENT_DIR"/evolution
-mkdir -p "$AGENT_DIR"/landings
-mkdir -p "$AGENT_DIR"/tools/{scripts,skills/memory/{scripts,references},hooks/scripts}
+mkdir -p "$AGENT_DIR"/landings/weekly
+mkdir -p "$AGENT_DIR"/tools/{scripts,skills/memory/{scripts,references},skills/landings,hooks/scripts}
 info "Done."
 
 # --- Step 2: Set up .claude/ directory ---
@@ -118,6 +118,12 @@ echo "[2/6] Setting up .claude/ directory..."
 if [ -d "$DOT_CLAUDE_DIR" ]; then
   cp -r "$DOT_CLAUDE_DIR/commands" "$AGENT_DIR/.claude/"
   cp "$DOT_CLAUDE_DIR/settings.json" "$AGENT_DIR/.claude/settings.json"
+  # Substitute template vars in any commands that use them
+  for cmd_file in "$AGENT_DIR"/.claude/commands/*.md; do
+    if grep -q '{{NAME}}\|{{AGENT}}\|{{DATE}}' "$cmd_file" 2>/dev/null; then
+      sed -i'' -e "s|{{NAME}}|$NAME|g" -e "s|{{AGENT}}|$AGENT|g" -e "s|{{DATE}}|$TODAY|g" "$cmd_file"
+    fi
+  done
   CMDS=$(ls "$DOT_CLAUDE_DIR/commands/"*.md 2>/dev/null | xargs -n1 basename | sed 's/.md//' | tr '\n' ', ' | sed 's/,$//')
   info "Installed commands: $CMDS"
   info "Installed settings.json with hooks"
@@ -136,6 +142,15 @@ if [ -d "$PLUGIN_DIR/skills/memory" ]; then
   info "Installed memory skill"
 fi
 
+# Skills: landings system
+if [ -f "$PLUGIN_DIR/skills/landings/SKILL.md" ]; then
+  sed -e "s|{{NAME}}|$NAME|g" \
+      -e "s|{{AGENT}}|$AGENT|g" \
+      -e "s|{{DATE}}|$TODAY|g" \
+      "$PLUGIN_DIR/skills/landings/SKILL.md" > "$AGENT_DIR/tools/skills/landings/SKILL.md"
+  info "Installed landings skill"
+fi
+
 # Hook scripts
 if [ -d "$PLUGIN_DIR/hooks" ]; then
   if ls "$PLUGIN_DIR/hooks/scripts/"*.sh 1>/dev/null 2>&1; then
@@ -150,7 +165,7 @@ if [ -d "$PLUGIN_DIR/scripts" ]; then
   cp "$PLUGIN_DIR/scripts/"*.sh "$AGENT_DIR/tools/scripts/" 2>/dev/null || true
   cp "$PLUGIN_DIR/scripts/"*.py "$AGENT_DIR/tools/scripts/" 2>/dev/null || true
   chmod +x "$AGENT_DIR/tools/scripts/"*.sh 2>/dev/null || true
-  info "Installed scripts"
+  info "Installed scripts (including landings dashboard)"
 fi
 
 info "Done."
@@ -271,8 +286,9 @@ echo ""
 echo "  Agent:     $AGENT_DIR"
 echo ""
 echo "  Components:"
-echo "    Commands: /hex-startup, /hex-save, /hex-shutdown, /hex-sync, /hex-create-team, /hex-connect-team, /context-save"
-echo "    Skills:   memory (search, index, health)"
+echo "    Commands: /hex-startup, /hex-save, /hex-shutdown, /hex-sync, /hex-create-team, /hex-connect-team, /hex-context-sync, /context-save"
+echo "    Skills:   memory (search, index, health), landings (daily + weekly)"
+echo "    Scripts:  landings-dashboard.sh (tmux pane)"
 echo "    Hooks:    transcript backup on every prompt + session end"
 echo ""
 echo "  Next steps:"

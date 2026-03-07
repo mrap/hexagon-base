@@ -378,6 +378,8 @@ Cross-reference new information against `todo.md` every session. If anything rel
 | 5 | **Flag unreplied pings.** Messages where someone asked {{NAME}} something without a response get surfaced. | Setup |
 | 6 | **Verify before asserting.** Never state a conclusion as fact without testing it first. Evidence first, conclusions second. | Setup |
 | 7 | **Improvements get written down.** When a better pattern is discovered, persist it to this file or evolution/. The context window is temporary. | Setup |
+| 8 | **Map every meeting to a landing.** Meetings without a landing get flagged for skip. Calendar time must advance outcomes. | Setup |
+| 9 | **Update the landings file whenever status changes.** Don't wait to be asked. The dashboard reads from the file in real time. | Setup |
 
 To add a new rule: append a row with the next number, the rule, and today's date.
 
@@ -387,31 +389,65 @@ To add a new rule: append a row with the next number, the rule, and today's date
 
 ### Landings
 
-Landings are concrete outcomes {{NAME}} plans to accomplish today. Not a task list. Landing targets.
+Landings are **outcomes, not tasks.** They use a priority-tiered system driven by a dedicated skill.
 
-At session start (after data pulls):
-1. Read `landings/` for existing targets
-2. Review `todo.md` for priority items
-3. Propose 3-5 landing targets for today
-4. Write to `landings/YYYY-MM-DD.md`
+**How it works:**
+- The landings skill runs a 9-phase morning procedure: load weekly targets, gather context, surface open loops, present for user selection, prioritize with L1-L4 tiers, format, suggest action sequence, map meetings to outcomes, and persist.
+- Weekly targets are set on Mondays (`landings/weekly/YYYY-WXX.md`) and guide daily landing selection all week.
+- Mid-day check-ins update status and append to the changelog.
 
-Format:
+**Priority tiers:**
+
+| Tier | Name | Principle |
+|------|------|-----------|
+| L1 | Others blocked on you | Unblocking people is highest leverage |
+| L2 | You're blocked on others | Chase dependencies to unblock yourself |
+| L3 | Your deliverables | Your own work product |
+| L4 | Strategic | Relationships, visibility, process. Flexible timing. |
+
+**Landing file format** (`landings/YYYY-MM-DD.md`):
 ```markdown
-# Landings — YYYY-MM-DD
+### L1. {outcome statement}
+**Priority:** L1 — {reason}
+**Status:** Not Started | In Progress | Done | Blocked | Dropped
 
-## Must Land
-- [ ] Ship the auth flow PR
-  - [x] Fix failing tests  Done ✓
-  - [ ] Address reviewer comments
-
-## Should Land
-- [ ] Draft Q2 roadmap outline
-
-## Stretch
-- [ ] Research caching options for API
+| Sub-item | Owner | Action | Status |
+|----------|-------|--------|--------|
+| Review PR | Alice | Approve | Done ✓ |
 ```
 
-Update landings file throughout the day as items complete.
+**Sub-item completion format:** Use `Done ✓` (not other variants). The dashboard parses this exact string.
+
+**Live dashboard:** Run in a tmux pane for real-time status:
+```bash
+bash $AGENT_DIR/tools/scripts/landings-dashboard.sh --watch
+```
+
+### Open Threads
+
+Threads are persistent context items that carry across days. They track things you're waiting on, monitoring, or need to follow up. Add them to the daily landings file:
+
+```markdown
+## Open Threads
+### T1. {Thread name}
+**State:** {current state}
+**Next action:** {what to do next}
+```
+
+The agent should proactively check open threads each session and surface any that need attention.
+
+### Changelog
+
+Every daily landings file has an append-only changelog at the bottom. Every status change gets a timestamped entry:
+
+```markdown
+## Changelog
+- 09:15 — Landings set
+- 10:30 — L1 status → In Progress (sent review request)
+- 14:00 — Added L5: {new landing} (escalation from standup)
+```
+
+This creates a complete record of what happened, when, and why. The dashboard renders the last 3 entries.
 
 ### Meeting Prep
 
@@ -517,18 +553,23 @@ Launch with `HEX_PRIVACY=1` to hide sensitive context during demos or screen sha
 │   └── metrics.md               ← Impact tracking
 │
 ├── landings/                    ← Daily outcome targets
-│   └── YYYY-MM-DD.md
+│   ├── YYYY-MM-DD.md            ← Daily landings with L1-L4 tiers
+│   └── weekly/                  ← Weekly target files
+│       └── YYYY-WXX.md
 │
 └── tools/                       ← Everything that executes
     ├── memory.db                ← SQLite FTS5 search index
     ├── scripts/
     │   ├── startup.sh           ← Automated session startup
     │   ├── session.sh           ← Multi-session registry
-    │   └── parse_transcripts.py ← .jsonl → readable daily transcripts
+    │   ├── parse_transcripts.py ← .jsonl → readable daily transcripts
+    │   └── landings-dashboard.sh ← Live tmux dashboard for landings
     ├── skills/
-    │   └── memory/
-    │       ├── SKILL.md         ← Memory skill definition
-    │       └── scripts/         ← memory_index.py, memory_search.py, memory_health.py
+    │   ├── memory/
+    │   │   ├── SKILL.md         ← Memory skill definition
+    │   │   └── scripts/         ← memory_index.py, memory_search.py, memory_health.py
+    │   └── landings/
+    │       └── SKILL.md         ← Daily landings skill (9-phase workflow)
     ├── commands/
     │   ├── hex-startup.md       ← /hex-startup — full session init
     │   ├── hex-save.md          ← /hex-save — save transcript + index
@@ -536,6 +577,7 @@ Launch with `HEX_PRIVACY=1` to hide sensitive context during demos or screen sha
     │   ├── hex-sync.md          ← /hex-sync — sync with teams
     │   ├── hex-create-team.md   ← /hex-create-team — create a new team
     │   ├── hex-connect-team.md  ← /hex-connect-team — join a team
+    │   ├── hex-context-sync.md  ← /hex-context-sync — weekly context sync
     │   └── context-save.md      ← /context-save — persist unsaved context
     ├── hooks/
     │   ├── hooks.json           ← Backup hooks (UserPromptSubmit + Stop)

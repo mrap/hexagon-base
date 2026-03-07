@@ -42,7 +42,7 @@ eval_syntax() {
   header "Syntax Checks"
 
   # Shell scripts
-  for script in scripts/bootstrap.sh plugin/scripts/startup.sh plugin/scripts/session.sh plugin/hooks/scripts/backup_session.sh; do
+  for script in scripts/bootstrap.sh plugin/scripts/startup.sh plugin/scripts/session.sh plugin/hooks/scripts/backup_session.sh plugin/scripts/landings-dashboard.sh; do
     if bash -n "$REPO_DIR/$script" 2>/dev/null; then
       pass "bash -n $script"
     else
@@ -90,7 +90,7 @@ eval_bootstrap() {
 
   # --- Directory structure ---
   header "Bootstrap — Directory Structure"
-  for d in .sessions .claude/commands me/decisions raw/transcripts raw/messages raw/calendar raw/docs people projects evolution landings tools/scripts tools/skills/memory/scripts tools/hooks/scripts; do
+  for d in .sessions .claude/commands me/decisions raw/transcripts raw/messages raw/calendar raw/docs people projects evolution landings landings/weekly tools/scripts tools/skills/memory/scripts tools/skills/landings tools/hooks/scripts; do
     if [ -d "$AGENT_DIR/$d" ]; then
       pass "dir exists: $d"
     else
@@ -161,7 +161,7 @@ eval_bootstrap() {
 
   # --- Commands in .claude/commands/ ---
   header "Bootstrap — Slash Commands"
-  EXPECTED_COMMANDS="context-save hex-connect-team hex-create-team hex-save hex-shutdown hex-startup hex-sync"
+  EXPECTED_COMMANDS="context-save hex-connect-team hex-context-sync hex-create-team hex-save hex-shutdown hex-startup hex-sync"
   for cmd in $EXPECTED_COMMANDS; do
     if [ -f "$AGENT_DIR/.claude/commands/${cmd}.md" ]; then
       pass "command installed: $cmd"
@@ -174,6 +174,26 @@ eval_bootstrap() {
     pass "memory SKILL.md installed"
   else
     fail "memory SKILL.md installed"
+  fi
+
+  # --- Landings skill ---
+  if [ -f "$AGENT_DIR/tools/skills/landings/SKILL.md" ]; then
+    pass "landings SKILL.md installed"
+  else
+    fail "landings SKILL.md installed"
+  fi
+
+  # --- Landings dashboard ---
+  if [ -f "$AGENT_DIR/tools/scripts/landings-dashboard.sh" ]; then
+    pass "landings-dashboard.sh installed"
+  else
+    fail "landings-dashboard.sh installed"
+  fi
+
+  if [ -x "$AGENT_DIR/tools/scripts/landings-dashboard.sh" ]; then
+    pass "landings-dashboard.sh is executable"
+  else
+    fail "landings-dashboard.sh is executable"
   fi
 
   for script in memory_index.py memory_search.py memory_health.py; do
@@ -659,6 +679,87 @@ EOF
   # Verify .sessions and tools/memory.db would be gitignored if .gitignore existed
   # (the workspace doesn't come with a .gitignore — that's the user's choice)
   pass "workspace is git-ready (no conflicts)"
+
+  # --- Landings Dashboard ---
+  header "Functional — Landings Dashboard"
+
+  # Dashboard handles missing landings file gracefully
+  OUTPUT=$(cd "$AGENT_DIR" && AGENT_DIR="$AGENT_DIR" bash tools/scripts/landings-dashboard.sh 2>&1)
+  if [ $? -eq 0 ]; then
+    pass "dashboard runs with no landings file"
+  else
+    fail "dashboard failed with no landings: $OUTPUT"
+  fi
+
+  if echo "$OUTPUT" | grep -q "LANDINGS"; then
+    pass "dashboard shows header"
+  else
+    fail "dashboard missing header"
+  fi
+
+  if echo "$OUTPUT" | grep -q "No landings set yet"; then
+    pass "dashboard shows empty state message"
+  else
+    fail "dashboard should show empty state"
+  fi
+
+  # Dashboard renders a sample landings file
+  TODAY_EVAL=$(date +%Y-%m-%d)
+  cat > "$AGENT_DIR/landings/$TODAY_EVAL.md" <<'SAMPLE'
+# Daily Landings — 2026-03-07 (Friday)
+
+## Landings
+
+### L1. Ship auth flow PR
+**Priority:** L1 — Blocking two engineers
+**Status:** In Progress
+
+| Sub-item | Owner | Action | Status |
+|----------|-------|--------|--------|
+| Fix tests | Me | Run suite | Done ✓ |
+| Address comments | Me | Respond | Pending |
+
+### L2. Draft Q2 roadmap
+**Priority:** L3 — My deliverable
+**Status:** Not Started
+
+## Open Threads
+### T1. API contract review
+**State:** Waiting on backend team
+**Next action:** Follow up Monday
+
+## Changelog
+- 09:15 — Landings set
+- 10:30 — L1 status → In Progress
+SAMPLE
+
+  OUTPUT=$(cd "$AGENT_DIR" && AGENT_DIR="$AGENT_DIR" bash tools/scripts/landings-dashboard.sh 2>&1)
+  if [ $? -eq 0 ]; then
+    pass "dashboard renders sample landings file"
+  else
+    fail "dashboard failed on sample: $OUTPUT"
+  fi
+
+  if echo "$OUTPUT" | grep -q "L1"; then
+    pass "dashboard shows L1 landing"
+  else
+    fail "dashboard missing L1"
+  fi
+
+  if echo "$OUTPUT" | grep -q "1/2"; then
+    pass "dashboard shows sub-item progress [1/2]"
+  else
+    fail "dashboard sub-item count wrong"
+  fi
+
+  if echo "$OUTPUT" | grep -q "T1"; then
+    pass "dashboard shows thread T1"
+  else
+    fail "dashboard missing thread T1"
+  fi
+
+  # Clean up sample
+  rm -f "$AGENT_DIR/landings/$TODAY_EVAL.md"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -691,6 +792,108 @@ eval_templates() {
       fail "template missing: $tmpl"
     fi
   done
+
+  # --- Landings system content checks ---
+  header "Templates — Landings System"
+
+  # CLAUDE.md.template references key landings concepts
+  if grep -q "Open Threads" "$REPO_DIR/templates/CLAUDE.md.template"; then
+    pass "CLAUDE.md.template contains Open Threads"
+  else
+    fail "CLAUDE.md.template missing Open Threads"
+  fi
+
+  if grep -q "Changelog" "$REPO_DIR/templates/CLAUDE.md.template"; then
+    pass "CLAUDE.md.template contains Changelog"
+  else
+    fail "CLAUDE.md.template missing Changelog"
+  fi
+
+  if grep -q "landings-dashboard" "$REPO_DIR/templates/CLAUDE.md.template"; then
+    pass "CLAUDE.md.template references landings dashboard"
+  else
+    fail "CLAUDE.md.template missing dashboard reference"
+  fi
+
+  if grep -q "L1.*L2.*L3.*L4\|L1.*Others blocked\|Priority tiers" "$REPO_DIR/templates/CLAUDE.md.template"; then
+    pass "CLAUDE.md.template references L1-L4 priority tiers"
+  else
+    fail "CLAUDE.md.template missing L1-L4 tiers"
+  fi
+
+  # Landings SKILL.md content checks
+  LANDINGS_SKILL="$REPO_DIR/plugin/skills/landings/SKILL.md"
+  if [ -f "$LANDINGS_SKILL" ]; then
+    pass "landings SKILL.md exists in plugin"
+
+    # Check all phases exist
+    PHASES_FOUND=0
+    for phase in "Phase 0" "Phase 1" "Phase 2" "Phase 3" "Phase 4" "Phase 5" "Phase 6" "Phase 7" "Phase 8" "Phase 9"; do
+      if grep -q "$phase" "$LANDINGS_SKILL"; then
+        PHASES_FOUND=$((PHASES_FOUND + 1))
+      fi
+    done
+    if [ "$PHASES_FOUND" -eq 10 ]; then
+      pass "landings SKILL.md has all 10 phases (0-9)"
+    else
+      fail "landings SKILL.md has $PHASES_FOUND/10 phases"
+    fi
+
+    # Check priority framework
+    if grep -q "L1.*Others blocked on you" "$LANDINGS_SKILL"; then
+      pass "landings SKILL.md has L1 tier"
+    else
+      fail "landings SKILL.md missing L1 tier"
+    fi
+
+    if grep -q "L4.*Strategic" "$LANDINGS_SKILL"; then
+      pass "landings SKILL.md has L4 tier"
+    else
+      fail "landings SKILL.md missing L4 tier"
+    fi
+
+    # Check weekly targets
+    if grep -q "Weekly Targets" "$LANDINGS_SKILL"; then
+      pass "landings SKILL.md has weekly targets"
+    else
+      fail "landings SKILL.md missing weekly targets"
+    fi
+
+    # Check open threads format
+    if grep -q "Open Threads" "$LANDINGS_SKILL"; then
+      pass "landings SKILL.md has open threads"
+    else
+      fail "landings SKILL.md missing open threads"
+    fi
+
+    # Check changelog format
+    if grep -q "Changelog" "$LANDINGS_SKILL"; then
+      pass "landings SKILL.md has changelog"
+    else
+      fail "landings SKILL.md missing changelog"
+    fi
+
+    # Check YAML frontmatter
+    if head -1 "$LANDINGS_SKILL" | grep -q "^---$"; then
+      pass "landings SKILL.md has YAML frontmatter"
+    else
+      fail "landings SKILL.md missing YAML frontmatter"
+    fi
+  else
+    fail "landings SKILL.md exists in plugin"
+  fi
+
+  # Context sync command exists
+  if [ -f "$REPO_DIR/dot-claude/commands/hex-context-sync.md" ]; then
+    pass "hex-context-sync.md exists"
+    if head -1 "$REPO_DIR/dot-claude/commands/hex-context-sync.md" | grep -q "^---$"; then
+      pass "hex-context-sync.md has YAML frontmatter"
+    else
+      fail "hex-context-sync.md missing YAML frontmatter"
+    fi
+  else
+    fail "hex-context-sync.md exists"
+  fi
 }
 
 # ═══════════════════════════════════════════════════════════════
