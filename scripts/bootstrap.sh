@@ -98,7 +98,7 @@ fi
 TODAY=$(date +%Y-%m-%d)
 
 # --- Step 1: Create folder structure ---
-echo "[1/6] Creating folder structure..."
+echo "[1/7] Creating folder structure..."
 mkdir -p "$AGENT_DIR"/.sessions
 mkdir -p "$AGENT_DIR"/me/decisions
 mkdir -p "$AGENT_DIR"/raw/{transcripts,messages,calendar,docs}
@@ -109,7 +109,7 @@ mkdir -p "$AGENT_DIR"/landings/weekly
 info "Done."
 
 # --- Step 2: Install .claude/ directory ---
-echo "[2/6] Installing .claude/ directory..."
+echo "[2/7] Installing .claude/ directory..."
 
 if [ -d "$DOT_CLAUDE_DIR" ]; then
   # Single recursive copy — dot-claude/ becomes .claude/
@@ -132,7 +132,7 @@ if [ -d "$DOT_CLAUDE_DIR" ]; then
 fi
 
 # --- Step 3: Generate CLAUDE.md from template ---
-echo "[3/6] Generating CLAUDE.md..."
+echo "[3/7] Generating CLAUDE.md..."
 if [ -f "$TEMPLATES_DIR/CLAUDE.md.template" ]; then
   sed -e "s|{{NAME}}|$NAME|g" \
       -e "s|{{AGENT}}|$AGENT|g" \
@@ -144,7 +144,7 @@ else
 fi
 
 # --- Step 4: Create skeleton files ---
-echo "[4/6] Creating skeleton files..."
+echo "[4/7] Creating skeleton files..."
 
 # todo.md
 if [ -f "$TEMPLATES_DIR/todo.md.template" ]; then
@@ -217,7 +217,7 @@ info "Created evolution/ files"
 info "Done."
 
 # --- Step 5: Verify ---
-echo "[5/6] Verifying..."
+echo "[5/7] Verifying..."
 MISSING=""
 for f in CLAUDE.md todo.md me/me.md me/learnings.md teams.json .claude/settings.json; do
   if [ ! -f "$AGENT_DIR/$f" ]; then
@@ -253,7 +253,7 @@ echo "    Scripts:  landings-dashboard.sh (tmux pane)"
 echo "    Hooks:    transcript backup on every prompt + session end"
 echo ""
 # --- Step 6: Install shell alias ---
-echo "[6/6] Setting up shell alias..."
+echo "[6/7] Setting up shell alias..."
 
 ALIAS_LINE="alias hex='bash $AGENT_DIR/.claude/scripts/workspace.sh'"
 ALIAS_ADDED=false
@@ -287,6 +287,38 @@ if [ -n "$RC_FILE" ]; then
   fi
 else
   info "Could not detect shell. Add manually: $ALIAS_LINE"
+fi
+
+# --- Step 7: Skip permissions setup ---
+echo "[7/7] Claude permissions setup..."
+FUNC_ADDED=false
+
+FUNC_LINE='claude() { command claude --dangerously-skip-permissions "$@"; }'
+
+if [ -n "$RC_FILE" ]; then
+  if [ -f "$RC_FILE" ] && grep -qF 'dangerously-skip-permissions' "$RC_FILE" 2>/dev/null; then
+    info "Claude skip-permissions already configured in $RC_FILE"
+    FUNC_ADDED=true
+  else
+    echo ""
+    echo "  Hexagon works best when Claude Code runs without permission prompts."
+    echo "  This adds a shell function so 'claude' always passes --dangerously-skip-permissions."
+    echo "  (Aliases don't work in non-interactive shells like tmux. Functions do.)"
+    echo ""
+    read -rp "  Set up auto skip-permissions? [Y/n] " SKIP_ANSWER
+    SKIP_ANSWER="${SKIP_ANSWER:-Y}"
+    if [[ "$SKIP_ANSWER" =~ ^[Yy] ]]; then
+      echo "" >> "$RC_FILE"
+      echo "# Claude Code — skip permission prompts" >> "$RC_FILE"
+      echo "$FUNC_LINE" >> "$RC_FILE"
+      info "Added to $RC_FILE"
+      FUNC_ADDED=true
+    else
+      info "Skipped. Add manually if you want: $FUNC_LINE"
+    fi
+  fi
+else
+  info "Could not detect shell. Add manually: $FUNC_LINE"
 fi
 
 # --- Summary ---
