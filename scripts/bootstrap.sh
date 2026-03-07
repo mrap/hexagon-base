@@ -126,7 +126,7 @@ if [ -d "$DOT_CLAUDE_DIR" ]; then
   # Make scripts executable
   find "$AGENT_DIR/.claude" -name "*.sh" -type f -exec chmod +x {} +
 
-  CMDS=$(ls "$DOT_CLAUDE_DIR/commands/"*.md 2>/dev/null | xargs -n1 basename | sed 's/.md//' | tr '\n' ', ' | sed 's/,$//')
+  CMDS=$(for f in "$DOT_CLAUDE_DIR/commands/"*.md; do [ -e "$f" ] && basename "$f" .md || true; done | tr '\n' ', ' | sed 's/,$//')
   info "Installed commands: $CMDS"
   info "Installed skills, hooks, scripts, and settings"
 fi
@@ -225,8 +225,13 @@ for f in CLAUDE.md todo.md me/me.md me/learnings.md teams.json .claude/settings.
   fi
 done
 
-# Check that commands were installed
-CMD_COUNT=$(ls "$AGENT_DIR/.claude/commands/"*.md 2>/dev/null | wc -l)
+# Check that commands were installed (avoid pipe under pipefail)
+CMD_FILES=("$AGENT_DIR/.claude/commands/"*.md)
+if [ -e "${CMD_FILES[0]}" ]; then
+  CMD_COUNT=${#CMD_FILES[@]}
+else
+  CMD_COUNT=0
+fi
 if [ "$CMD_COUNT" -eq 0 ]; then
   MISSING="$MISSING  - .claude/commands/ (no commands)\n"
 fi
@@ -244,18 +249,35 @@ echo "[6/7] Setting up shell alias..."
 ALIAS_LINE="alias hex='bash $AGENT_DIR/.claude/scripts/workspace.sh'"
 ALIAS_ADDED=false
 
-# Detect shell rc file
-if [ -n "${ZSH_VERSION:-}" ] || [ "$(basename "$SHELL")" = "zsh" ]; then
+# Detect shell rc file.
+# Since this script runs under bash, BASH_VERSION is always set and
+# ZSH_VERSION is never set. Rely on $SHELL (the user's login shell) first,
+# then fall back to checking which rc files exist.
+USER_SHELL="$(basename "${SHELL:-}")"
+if [ "$USER_SHELL" = "zsh" ]; then
   RC_FILE="$HOME/.zshrc"
-elif [ -n "${BASH_VERSION:-}" ] || [ "$(basename "$SHELL")" = "bash" ]; then
+elif [ "$USER_SHELL" = "bash" ]; then
+  RC_FILE="$HOME/.bashrc"
+elif [ -f "$HOME/.zshrc" ]; then
+  RC_FILE="$HOME/.zshrc"
+elif [ -f "$HOME/.bashrc" ]; then
   RC_FILE="$HOME/.bashrc"
 else
   RC_FILE=""
 fi
 
 if [ -n "$RC_FILE" ]; then
-  if [ -f "$RC_FILE" ] && grep -qF "workspace.sh" "$RC_FILE" 2>/dev/null; then
+  # Touch the file if it doesn't exist yet
+  [ -f "$RC_FILE" ] || touch "$RC_FILE"
+
+  if grep -qF "$ALIAS_LINE" "$RC_FILE" 2>/dev/null; then
+    # Exact alias already present — nothing to do
     info "Shell alias already exists in $RC_FILE"
+    ALIAS_ADDED=true
+  elif grep -qF "alias hex=" "$RC_FILE" 2>/dev/null; then
+    # Old/different hex alias exists — replace it
+    sed -e "s|^alias hex=.*|$ALIAS_LINE|" "$RC_FILE" > "$RC_FILE.tmp" && mv "$RC_FILE.tmp" "$RC_FILE"
+    info "Updated 'hex' alias in $RC_FILE"
     ALIAS_ADDED=true
   else
     echo "" >> "$RC_FILE"
