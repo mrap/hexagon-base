@@ -19,9 +19,9 @@ set -uo pipefail
 # ─── Resolve paths ───────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AGENT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TOOLS_DIR="$AGENT_DIR/tools"
-SCRIPTS_DIR="$TOOLS_DIR/scripts"
-SKILLS_DIR="$TOOLS_DIR/skills"
+CLAUDE_DIR="$AGENT_DIR/.claude"
+SCRIPTS_DIR="$CLAUDE_DIR/scripts"
+SKILLS_DIR="$CLAUDE_DIR/skills"
 MEMORY_SCRIPTS="$SKILLS_DIR/memory/scripts"
 
 # Colors
@@ -209,8 +209,8 @@ step_evolution() {
     fi
 
     # Count pending suggestions (lines starting with "## " that have "Status: proposed")
-    PENDING=$(grep -c "Status: proposed" "$SUGGESTIONS" 2>/dev/null || echo "0")
-    if [[ "$PENDING" -gt 0 ]]; then
+    PENDING=$(grep -c "Status: proposed" "$SUGGESTIONS" 2>/dev/null) || true
+    if [[ "${PENDING:-0}" -gt 0 ]]; then
         warn "$PENDING pending improvement suggestion(s). Review at session start."
     else
         pass "No pending suggestions"
@@ -238,7 +238,7 @@ step_status() {
     fi
 
     # Memory DB freshness
-    DB="$TOOLS_DIR/memory.db"
+    DB="$CLAUDE_DIR/memory.db"
     if [[ -f "$DB" ]]; then
         if [[ "$OSTYPE" == darwin* ]]; then
             DB_MOD=$(stat -f %m "$DB")

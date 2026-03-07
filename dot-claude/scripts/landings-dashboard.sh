@@ -4,18 +4,18 @@
 # Usage: bash landings-dashboard.sh --watch
 #    or: watch -t -n 2 -c bash landings-dashboard.sh
 
-cd "$HOME" 2>/dev/null
-
-# Auto-detect AGENT_DIR: check common locations
+# Auto-detect AGENT_DIR: walk up from script location to find CLAUDE.md
+# Resolve before any cd changes the working directory
 if [ -z "${AGENT_DIR:-}" ]; then
-  # Try ~/hexagon/*/CLAUDE.md (first match)
-  for d in "$HOME"/hexagon/*/CLAUDE.md; do
-    if [ -f "$d" ]; then
-      AGENT_DIR="$(dirname "$d")"
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  candidate="$SCRIPT_DIR"
+  while [ "$candidate" != "/" ]; do
+    if [ -f "$candidate/CLAUDE.md" ]; then
+      AGENT_DIR="$candidate"
       break
     fi
+    candidate="$(dirname "$candidate")"
   done
-  # Fallback
   AGENT_DIR="${AGENT_DIR:-$HOME/hexagon}"
 fi
 
@@ -37,7 +37,7 @@ TEXT="\033[90m"
 RESET="\033[0m"
 
 if [[ "${1:-}" == "--watch" ]]; then
-  exec watch -t -n 2 -c bash "$0"
+  exec watch -t -n 2 -c "AGENT_DIR='$AGENT_DIR' bash '$0'"
 fi
 
 # Truncate helper
