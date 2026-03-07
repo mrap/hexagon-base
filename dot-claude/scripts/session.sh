@@ -9,9 +9,9 @@
 
 set -uo pipefail
 
-# Resolve agent root from script location (tools/scripts/)
+# Resolve agent root from script location (.claude/scripts/)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ "$SCRIPT_DIR" == */tools/scripts ]]; then
+if [[ "$SCRIPT_DIR" == */.claude/scripts ]]; then
     AGENT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 else
     AGENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -115,7 +115,7 @@ EOF
     TRANSCRIPTS_DIR="$AGENT_DIR/raw/transcripts"
     if [ -d "$TRANSCRIPTS_DIR" ]; then
       # Process unprocessed transcripts before deleting
-      PARSER="$AGENT_DIR/tools/scripts/parse_transcripts.py"
+      PARSER="$AGENT_DIR/.claude/scripts/parse_transcripts.py"
       if [ -f "$PARSER" ]; then
         python3 "$PARSER" 2>/dev/null || true
       fi

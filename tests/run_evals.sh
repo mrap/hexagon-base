@@ -90,7 +90,7 @@ eval_bootstrap() {
 
   # --- Directory structure ---
   header "Bootstrap — Directory Structure"
-  for d in .sessions .claude/commands me/decisions raw/transcripts raw/messages raw/calendar raw/docs people projects evolution landings landings/weekly tools/scripts tools/skills/memory/scripts tools/skills/landings tools/hooks/scripts; do
+  for d in .sessions .claude/commands me/decisions raw/transcripts raw/messages raw/calendar raw/docs people projects evolution landings landings/weekly .claude/scripts .claude/skills/memory/scripts .claude/skills/landings .claude/hooks/scripts; do
     if [ -d "$AGENT_DIR/$d" ]; then
       pass "dir exists: $d"
     else
@@ -170,57 +170,65 @@ eval_bootstrap() {
     fi
   done
 
-  if [ -f "$AGENT_DIR/tools/skills/memory/SKILL.md" ]; then
+  # Verify no .md files directly in .claude/ (commands must be in commands/)
+  STRAY_MDS=$(find "$AGENT_DIR/.claude" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l)
+  if [ "$STRAY_MDS" -eq 0 ]; then
+    pass "no stray .md files in .claude/ root"
+  else
+    fail "found $STRAY_MDS .md files directly in .claude/ (should be in commands/)"
+  fi
+
+  if [ -f "$AGENT_DIR/.claude/skills/memory/SKILL.md" ]; then
     pass "memory SKILL.md installed"
   else
     fail "memory SKILL.md installed"
   fi
 
   # --- Landings skill ---
-  if [ -f "$AGENT_DIR/tools/skills/landings/SKILL.md" ]; then
+  if [ -f "$AGENT_DIR/.claude/skills/landings/SKILL.md" ]; then
     pass "landings SKILL.md installed"
   else
     fail "landings SKILL.md installed"
   fi
 
   # --- Landings dashboard ---
-  if [ -f "$AGENT_DIR/tools/scripts/landings-dashboard.sh" ]; then
+  if [ -f "$AGENT_DIR/.claude/scripts/landings-dashboard.sh" ]; then
     pass "landings-dashboard.sh installed"
   else
     fail "landings-dashboard.sh installed"
   fi
 
-  if [ -x "$AGENT_DIR/tools/scripts/landings-dashboard.sh" ]; then
+  if [ -x "$AGENT_DIR/.claude/scripts/landings-dashboard.sh" ]; then
     pass "landings-dashboard.sh is executable"
   else
     fail "landings-dashboard.sh is executable"
   fi
 
   for script in memory_index.py memory_search.py memory_health.py; do
-    if [ -f "$AGENT_DIR/tools/skills/memory/scripts/$script" ]; then
+    if [ -f "$AGENT_DIR/.claude/skills/memory/scripts/$script" ]; then
       pass "memory script installed: $script"
     else
       fail "memory script installed: $script"
     fi
   done
 
-  if [ -f "$AGENT_DIR/tools/hooks/scripts/backup_session.sh" ]; then
+  if [ -f "$AGENT_DIR/.claude/hooks/scripts/backup_session.sh" ]; then
     pass "hook script installed"
   else
     fail "hook script installed"
   fi
 
-  if [ -x "$AGENT_DIR/tools/hooks/scripts/backup_session.sh" ]; then
+  if [ -x "$AGENT_DIR/.claude/hooks/scripts/backup_session.sh" ]; then
     pass "hook script is executable"
   else
     fail "hook script is executable"
   fi
 
   # hooks.json should NOT be in workspace
-  if [ ! -f "$AGENT_DIR/tools/hooks/hooks.json" ]; then
-    pass "no stale hooks.json in tools/"
+  if [ ! -f "$AGENT_DIR/.claude/hooks/hooks.json" ]; then
+    pass "no stale hooks.json in .claude/"
   else
-    fail "stale hooks.json found in tools/"
+    fail "stale hooks.json found in .claude/"
   fi
 
   # --- No back-references to seed repo ---
@@ -349,14 +357,14 @@ eval_memory() {
   header "Memory — Indexer"
 
   # Force a full reindex so this eval group works regardless of prior state
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_index.py --full 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_index.py --full 2>&1)
   if [ $? -eq 0 ]; then
     pass "memory_index.py runs successfully"
   else
     fail "memory_index.py: $OUTPUT"
   fi
 
-  if [ -f "$AGENT_DIR/tools/memory.db" ]; then
+  if [ -f "$AGENT_DIR/.claude/memory.db" ]; then
     pass "memory.db created"
   else
     fail "memory.db not created"
@@ -370,7 +378,7 @@ eval_memory() {
   fi
 
   # Incremental run should skip already-indexed files
-  OUTPUT2=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_index.py 2>&1)
+  OUTPUT2=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_index.py 2>&1)
   if echo "$OUTPUT2" | grep -q "unchanged"; then
     pass "incremental index skips unchanged files"
   else
@@ -380,7 +388,7 @@ eval_memory() {
   header "Memory — Search"
 
   # Search for known content (user name appears in CLAUDE.md, learnings, etc.)
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_search.py "$NAME" 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_search.py "$NAME" 2>&1)
   if [ $? -eq 0 ]; then
     pass "memory_search.py runs successfully"
   else
@@ -394,7 +402,7 @@ eval_memory() {
   fi
 
   # Search with --compact flag
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_search.py --compact "$NAME" 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_search.py --compact "$NAME" 2>&1)
   if [ $? -eq 0 ]; then
     pass "search --compact works"
   else
@@ -402,7 +410,7 @@ eval_memory() {
   fi
 
   # Search with --file filter
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_search.py --file me "$NAME" 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_search.py --file me "$NAME" 2>&1)
   if [ $? -eq 0 ]; then
     pass "search --file filter works"
   else
@@ -410,7 +418,7 @@ eval_memory() {
   fi
 
   # Search with special characters (FTS5 sanitization)
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_search.py '"test*" (query)' 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_search.py '"test*" (query)' 2>&1)
   if [ $? -eq 0 ]; then
     pass "search handles FTS5 special characters"
   else
@@ -418,7 +426,7 @@ eval_memory() {
   fi
 
   # Search with --private flag
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_search.py --private "$NAME" 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_search.py --private "$NAME" 2>&1)
   if [ $? -eq 0 ]; then
     pass "search --private flag works"
   else
@@ -426,7 +434,7 @@ eval_memory() {
   fi
 
   # Search with no results
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_search.py "xyzzy_nonexistent_term_42" 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_search.py "xyzzy_nonexistent_term_42" 2>&1)
   if [ $? -eq 0 ] && echo "$OUTPUT" | grep -qi "no results"; then
     pass "search gracefully handles no results"
   else
@@ -435,7 +443,7 @@ eval_memory() {
 
   header "Memory — Health Check"
 
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_health.py 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_health.py 2>&1)
   if [ $? -eq 0 ]; then
     pass "memory_health.py runs successfully"
   else
@@ -455,7 +463,7 @@ eval_memory() {
   fi
 
   # --quiet flag
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_health.py --quiet 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_health.py --quiet 2>&1)
   if [ $? -eq 0 ]; then
     pass "health check --quiet works"
   else
@@ -463,7 +471,7 @@ eval_memory() {
   fi
 
   header "Memory — Full Reindex"
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_index.py --full 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_index.py --full 2>&1)
   if [ $? -eq 0 ] && echo "$OUTPUT" | grep -q "Full reindex"; then
     pass "full reindex works"
   else
@@ -471,7 +479,7 @@ eval_memory() {
   fi
 
   header "Memory — Index Stats"
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_index.py --stats 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_index.py --stats 2>&1)
   if [ $? -eq 0 ] && echo "$OUTPUT" | grep -q "Files indexed"; then
     pass "index stats work"
   else
@@ -506,8 +514,8 @@ print(d['hooks']['UserPromptSubmit'][0]['hooks'][0]['command'])
   fi
 
   # The hook script exists at the expected relative path
-  if [ -f "$AGENT_DIR/tools/hooks/scripts/backup_session.sh" ]; then
-    pass "hook script exists at tools/hooks/scripts/backup_session.sh"
+  if [ -f "$AGENT_DIR/.claude/hooks/scripts/backup_session.sh" ]; then
+    pass "hook script exists at .claude/hooks/scripts/backup_session.sh"
   else
     fail "hook script missing"
   fi
@@ -543,7 +551,7 @@ print(d['hooks']['UserPromptSubmit'][0]['hooks'][0]['command'])
   header "Functional — Session Management"
 
   # Start a session
-  SESSION_ID=$(cd "$AGENT_DIR" && bash tools/scripts/session.sh start "eval-test" 2>&1)
+  SESSION_ID=$(cd "$AGENT_DIR" && bash .claude/scripts/session.sh start "eval-test" 2>&1)
   if [ $? -eq 0 ] && [ -n "$SESSION_ID" ]; then
     pass "session start returns ID: $SESSION_ID"
   else
@@ -551,7 +559,7 @@ print(d['hooks']['UserPromptSubmit'][0]['hooks'][0]['command'])
   fi
 
   # Check session exists
-  OUTPUT=$(cd "$AGENT_DIR" && bash tools/scripts/session.sh check 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && bash .claude/scripts/session.sh check 2>&1)
   if [ $? -eq 0 ] && echo "$OUTPUT" | grep -q "eval-test"; then
     pass "session check shows active session with focus"
   else
@@ -559,7 +567,7 @@ print(d['hooks']['UserPromptSubmit'][0]['hooks'][0]['command'])
   fi
 
   # Stop session by ID
-  OUTPUT=$(cd "$AGENT_DIR" && bash tools/scripts/session.sh stop "$SESSION_ID" 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && bash .claude/scripts/session.sh stop "$SESSION_ID" 2>&1)
   if [ $? -eq 0 ]; then
     pass "session stop by ID works"
   else
@@ -567,7 +575,7 @@ print(d['hooks']['UserPromptSubmit'][0]['hooks'][0]['command'])
   fi
 
   # Check no sessions remain
-  OUTPUT=$(cd "$AGENT_DIR" && bash tools/scripts/session.sh check 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && bash .claude/scripts/session.sh check 2>&1)
   if [ $? -ne 0 ] && echo "$OUTPUT" | grep -q "No active"; then
     pass "session check shows no sessions after stop"
   else
@@ -575,7 +583,7 @@ print(d['hooks']['UserPromptSubmit'][0]['hooks'][0]['command'])
   fi
 
   # Cleanup with no stale sessions
-  OUTPUT=$(cd "$AGENT_DIR" && bash tools/scripts/session.sh cleanup 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && bash .claude/scripts/session.sh cleanup 2>&1)
   if [ $? -eq 0 ]; then
     pass "session cleanup runs"
   else
@@ -586,7 +594,7 @@ print(d['hooks']['UserPromptSubmit'][0]['hooks'][0]['command'])
   header "Functional — Startup Script"
 
   # startup.sh needs a workspace it can detect — run from AGENT_DIR
-  OUTPUT=$(cd "$AGENT_DIR" && bash tools/scripts/startup.sh --status 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && bash .claude/scripts/startup.sh --status 2>&1)
   EXIT=$?
   # --status may warn about missing things, that's ok
   if echo "$OUTPUT" | grep -qi "startup\|session\|hexagon\|environment"; then
@@ -604,7 +612,7 @@ print(d['hooks']['UserPromptSubmit'][0]['hooks'][0]['command'])
   header "Functional — Hook Script"
 
   # backup_session.sh should run but find no .jsonl to copy (that's ok)
-  OUTPUT=$(cd "$AGENT_DIR" && bash tools/hooks/scripts/backup_session.sh 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && bash .claude/hooks/scripts/backup_session.sh 2>&1)
   if [ $? -eq 0 ]; then
     pass "backup_session.sh runs without error"
   else
@@ -627,7 +635,7 @@ Testing that the memory pipeline works end-to-end.
 EOF
 
   # Index
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_index.py 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_index.py 2>&1)
   if echo "$OUTPUT" | grep -q "eval-test.md"; then
     pass "indexer picks up new file"
   else
@@ -635,7 +643,7 @@ EOF
   fi
 
   # Search for the unique marker
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_search.py "$UNIQUE" 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_search.py "$UNIQUE" 2>&1)
   if echo "$OUTPUT" | grep -q "$UNIQUE"; then
     pass "search finds unique marker in new file"
   else
@@ -643,7 +651,7 @@ EOF
   fi
 
   # Search with file filter
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_search.py --file projects "$UNIQUE" 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_search.py --file projects "$UNIQUE" 2>&1)
   if echo "$OUTPUT" | grep -q "eval-test"; then
     pass "file filter narrows to correct directory"
   else
@@ -652,14 +660,14 @@ EOF
 
   # Delete the file, reindex, confirm it's gone
   rm "$AGENT_DIR/projects/eval-test.md"
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_index.py 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_index.py 2>&1)
   if echo "$OUTPUT" | grep -q "Removed:.*eval-test"; then
     pass "indexer removes deleted file from index"
   else
     fail "indexer didn't clean up deleted file: $OUTPUT"
   fi
 
-  OUTPUT=$(cd "$AGENT_DIR" && python3 tools/skills/memory/scripts/memory_search.py "$UNIQUE" 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && python3 .claude/skills/memory/scripts/memory_search.py "$UNIQUE" 2>&1)
   if echo "$OUTPUT" | grep -qi "no results"; then
     pass "search returns no results for deleted file"
   else
@@ -676,7 +684,7 @@ EOF
     fail "git init: $OUTPUT"
   fi
 
-  # Verify .sessions and tools/memory.db would be gitignored if .gitignore existed
+  # Verify .sessions and .claude/memory.db would be gitignored if .gitignore existed
   # (the workspace doesn't come with a .gitignore — that's the user's choice)
   pass "workspace is git-ready (no conflicts)"
 
@@ -684,7 +692,7 @@ EOF
   header "Functional — Landings Dashboard"
 
   # Dashboard handles missing landings file gracefully
-  OUTPUT=$(cd "$AGENT_DIR" && AGENT_DIR="$AGENT_DIR" bash tools/scripts/landings-dashboard.sh 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && AGENT_DIR="$AGENT_DIR" bash .claude/scripts/landings-dashboard.sh 2>&1)
   if [ $? -eq 0 ]; then
     pass "dashboard runs with no landings file"
   else
@@ -733,7 +741,7 @@ EOF
 - 10:30 — L1 status → In Progress
 SAMPLE
 
-  OUTPUT=$(cd "$AGENT_DIR" && AGENT_DIR="$AGENT_DIR" bash tools/scripts/landings-dashboard.sh 2>&1)
+  OUTPUT=$(cd "$AGENT_DIR" && AGENT_DIR="$AGENT_DIR" bash .claude/scripts/landings-dashboard.sh 2>&1)
   if [ $? -eq 0 ]; then
     pass "dashboard renders sample landings file"
   else

@@ -12,13 +12,13 @@ description: >
 1. **Parse transcripts**: Convert raw .jsonl session data into readable daily markdown.
 
 ```bash
-python3 $AGENT_DIR/tools/scripts/parse_transcripts.py
+python3 $AGENT_DIR/.claude/scripts/parse_transcripts.py
 ```
 
 2. **Rebuild memory index**: Update the search index with any new or changed files.
 
 ```bash
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_index.py
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_index.py
 ```
 
 3. **Report**: Tell the user what was saved.

@@ -24,14 +24,14 @@ def _find_root():
     """Walk up from script location to find the agent root."""
     d = Path(__file__).resolve().parent
     for _ in range(6):
-        if (d / "CLAUDE.md").exists() or (d / ".claude-plugin").exists():
+        if (d / "CLAUDE.md").exists():
             return d
         d = d.parent
     return Path(__file__).resolve().parent.parent
 
 
 AGENT_ROOT = _find_root()
-DB_PATH = AGENT_ROOT / "tools" / "memory.db"
+DB_PATH = AGENT_ROOT / ".claude" / "memory.db"
 
 
 def truncate(text: str, max_chars: int = 300) -> str:

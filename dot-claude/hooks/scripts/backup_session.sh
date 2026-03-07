@@ -7,9 +7,9 @@ set -uo pipefail
 
 PROJECTS_DIR="$HOME/.claude/projects"
 
-# Resolve agent root from script location (tools/hooks/scripts/)
+# Resolve agent root from script location (.claude/hooks/scripts/)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ "$SCRIPT_DIR" == */tools/hooks/scripts ]]; then
+if [[ "$SCRIPT_DIR" == */.claude/hooks/scripts ]]; then
     AGENT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 elif [[ "$SCRIPT_DIR" == */hooks/scripts ]]; then
     AGENT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"

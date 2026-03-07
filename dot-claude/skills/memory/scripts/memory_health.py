@@ -21,14 +21,14 @@ def _find_root():
     """Walk up from script location to find the agent root."""
     d = Path(__file__).resolve().parent
     for _ in range(6):
-        if (d / "CLAUDE.md").exists() or (d / ".claude-plugin").exists():
+        if (d / "CLAUDE.md").exists():
             return d
         d = d.parent
     return Path(__file__).resolve().parent.parent
 
 
 AGENT_ROOT = _find_root()
-DB_PATH = AGENT_ROOT / "tools" / "memory.db"
+DB_PATH = AGENT_ROOT / ".claude" / "memory.db"
 
 PASS = "\033[32mPASS\033[0m"
 WARN = "\033[33mWARN\033[0m"
@@ -110,7 +110,7 @@ def check_index_freshness():
 
     latest_md = 0
     latest_file = ""
-    skip_dirs = {".claude-plugin", ".claude", ".sessions", "tools", "node_modules", ".git"}
+    skip_dirs = {".claude", ".sessions", "node_modules", ".git"}
     for root, dirs, files in os.walk(str(AGENT_ROOT)):
         dirs[:] = [d for d in dirs if d not in skip_dirs]
         for f in files:

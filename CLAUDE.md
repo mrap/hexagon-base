@@ -27,10 +27,9 @@ The created workspace has no symlinks back to this repo. Everything is copied in
 1. User asks to install/set up their agent
 2. Claude asks for agent name and install location
 3. `scripts/bootstrap.sh` creates the full workspace:
-   - Copies `dot-claude/` into `.claude/` (commands, settings template)
-   - Generates `.claude/settings.json` from template with hook paths
-   - Copies tools (scripts, skills, hooks) into `tools/`
-   - Generates `CLAUDE.md` from `templates/CLAUDE.md.template` with variable substitution (`{{NAME}}`, `{{AGENT}}`, `{{DATE}}`)
+   - Copies `dot-claude/` → `.claude/` (single recursive copy: commands, settings, skills, hooks, scripts)
+   - Substitutes `{{NAME}}`, `{{AGENT}}`, `{{DATE}}` in all `.md` files
+   - Generates `CLAUDE.md` from `templates/CLAUDE.md.template`
    - Creates skeleton files from templates (`me.md`, `todo.md`)
 
 ### Key Directories
@@ -80,9 +79,9 @@ bash -n dot-claude/scripts/session.sh
 bash -n dot-claude/hooks/scripts/backup_session.sh
 
 # Test memory system after bootstrap
-python3 /tmp/hexagon-test/testuser/tools/skills/memory/scripts/memory_index.py
-python3 /tmp/hexagon-test/testuser/tools/skills/memory/scripts/memory_search.py "test query"
-python3 /tmp/hexagon-test/testuser/tools/skills/memory/scripts/memory_health.py
+python3 /tmp/hexagon-test/.claude/skills/memory/scripts/memory_index.py
+python3 /tmp/hexagon-test/.claude/skills/memory/scripts/memory_search.py "test query"
+python3 /tmp/hexagon-test/.claude/skills/memory/scripts/memory_health.py
 ```
 
 ## Template Variables

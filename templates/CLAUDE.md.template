@@ -26,7 +26,7 @@ Your workspace is organized into clear areas:
 - **raw/** — Unprocessed input: transcripts, message dumps, calendar data, documents.
 - **evolution/** — The improvement engine's workspace: observations, suggestions, changelog, metrics.
 - **landings/** — Daily outcome targets. What {{NAME}} plans to land today.
-- **tools/** — Scripts, skills, commands, hooks. Everything that executes.
+- **.claude/** — Scripts, skills, commands, hooks. Everything that executes.
 
 ---
 
@@ -36,7 +36,7 @@ Your workspace is organized into clear areas:
 
 Run the automated startup script:
 ```bash
-bash $AGENT_DIR/tools/scripts/startup.sh
+bash $AGENT_DIR/.claude/scripts/startup.sh
 ```
 
 The script handles:
@@ -87,7 +87,7 @@ When the user says "shut down", "end session", "hex shutdown", or similar:
 5. Deregister session
 
 ```bash
-bash $AGENT_DIR/tools/scripts/session.sh stop
+bash $AGENT_DIR/.claude/scripts/session.sh stop
 ```
 
 ### Environment Paths
@@ -217,7 +217,7 @@ Build the improvement using the simplest approach that works:
 | Complexity | Approach | When to use |
 |------------|----------|-------------|
 | Low | Add a standing order to this file | Behavioral adjustment |
-| Medium | Create a template in tools/templates/ | Repeated document format |
+| Medium | Create a template in .claude/templates/ | Repeated document format |
 | High | Write a new skill (SKILL.md + scripts) | New capability |
 
 ### Phase 5: Track (ongoing)
@@ -243,9 +243,9 @@ Update `evolution/metrics.md` monthly:
 ### Skill Self-Creation
 
 When the improvement requires a new capability:
-1. Create `tools/skills/<skill-name>/SKILL.md` with YAML frontmatter + instructions
-2. If scripts are needed, add them to `tools/skills/<skill-name>/scripts/`
-3. The skill is auto-discovered (plugin.json points to `tools/skills/`)
+1. Create `.claude/skills/<skill-name>/SKILL.md` with YAML frontmatter + instructions
+2. If scripts are needed, add them to `.claude/skills/<skill-name>/scripts/`
+3. The skill is auto-discovered from `.claude/skills/`
 4. Tell {{NAME}}: "I created /skill-name. Try it next session."
 
 ---
@@ -313,18 +313,18 @@ If you generated an insight, recommendation, or observation and it's not in a fi
 Your agent has persistent, searchable memory stored locally.
 
 ### How It Works
-- All `.md` and `.txt` files in the agent directory are indexed into a SQLite FTS5 database at `tools/memory.db`.
+- All `.md` and `.txt` files in the agent directory are indexed into a SQLite FTS5 database at `.claude/memory.db`.
 - Files are chunked by markdown heading. Each chunk is searchable by keyword with BM25 ranking.
 - The indexer runs at startup and only re-indexes changed files (incremental).
 
 ### How to Search
 ```bash
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_search.py "query terms"
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_search.py --top 5 "phrase"
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_search.py --file people "name"
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_search.py --compact "keyword"
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_search.py --context 3 "query"
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_search.py --private "sensitive"
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_search.py "query terms"
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_search.py --top 5 "phrase"
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_search.py --file people "name"
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_search.py --compact "keyword"
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_search.py --context 3 "query"
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_search.py --private "sensitive"
 ```
 
 ### Search Before Guessing
@@ -332,9 +332,9 @@ Before answering questions about past context, decisions, people, or project his
 
 ### How to Rebuild
 ```bash
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_index.py           # Incremental
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_index.py --full     # Full reindex
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_index.py --stats    # Show stats
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_index.py           # Incremental
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_index.py --full     # Full reindex
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_index.py --stats    # Show stats
 ```
 
 ### Session Transcripts
@@ -347,7 +347,7 @@ Full session transcripts (.jsonl) are auto-backed up to `raw/transcripts/` via h
 When multiple Claude Code sessions run simultaneously:
 
 ### Detection
-On startup, run `bash $AGENT_DIR/tools/scripts/session.sh check`. If other sessions are active, follow these rules:
+On startup, run `bash $AGENT_DIR/.claude/scripts/session.sh check`. If other sessions are active, follow these rules:
 
 ### Rules for Concurrent Sessions
 
@@ -420,7 +420,7 @@ Landings are **outcomes, not tasks.** They use a priority-tiered system driven b
 
 **Live dashboard:** Run in a tmux pane for real-time status:
 ```bash
-bash $AGENT_DIR/tools/scripts/landings-dashboard.sh --watch
+bash $AGENT_DIR/.claude/scripts/landings-dashboard.sh --watch
 ```
 
 ### Open Threads
@@ -517,8 +517,34 @@ Launch with `HEX_PRIVACY=1` to hide sensitive context during demos or screen sha
 
 ```
 {{AGENT}}/
-├── .claude-plugin/
-│   └── plugin.json              ← Plugin manifest
+├── .claude/                     ← Everything that executes
+│   ├── memory.db                ← SQLite FTS5 search index
+│   ├── commands/
+│   │   ├── hex-startup.md       ← /hex-startup — full session init
+│   │   ├── hex-save.md          ← /hex-save — save transcript + index
+│   │   ├── hex-shutdown.md      ← /hex-shutdown — clean session close
+│   │   ├── hex-sync.md          ← /hex-sync — sync with teams
+│   │   ├── hex-create-team.md   ← /hex-create-team — create a new team
+│   │   ├── hex-connect-team.md  ← /hex-connect-team — join a team
+│   │   ├── hex-context-sync.md  ← /hex-context-sync — weekly context sync
+│   │   └── context-save.md      ← /context-save — persist unsaved context
+│   ├── scripts/
+│   │   ├── startup.sh           ← Automated session startup
+│   │   ├── session.sh           ← Multi-session registry
+│   │   ├── parse_transcripts.py ← .jsonl → readable daily transcripts
+│   │   └── landings-dashboard.sh ← Live tmux dashboard for landings
+│   ├── skills/
+│   │   ├── memory/
+│   │   │   ├── SKILL.md         ← Memory skill definition
+│   │   │   └── scripts/         ← memory_index.py, memory_search.py, memory_health.py
+│   │   └── landings/
+│   │       └── SKILL.md         ← Daily landings skill (9-phase workflow)
+│   ├── hooks/
+│   │   ├── hooks.json           ← Backup hooks (UserPromptSubmit + Stop)
+│   │   └── scripts/
+│   │       └── backup_session.sh
+│   └── templates/               ← Reusable document formats
+│
 ├── CLAUDE.md                    ← This file. Agent brain.
 ├── todo.md                      ← Master priorities + action items
 ├── teams.json                   ← Connected teams
@@ -552,36 +578,8 @@ Launch with `HEX_PRIVACY=1` to hide sensitive context during demos or screen sha
 │   ├── changelog.md             ← Implemented improvements
 │   └── metrics.md               ← Impact tracking
 │
-├── landings/                    ← Daily outcome targets
-│   ├── YYYY-MM-DD.md            ← Daily landings with L1-L4 tiers
-│   └── weekly/                  ← Weekly target files
-│       └── YYYY-WXX.md
-│
-└── tools/                       ← Everything that executes
-    ├── memory.db                ← SQLite FTS5 search index
-    ├── scripts/
-    │   ├── startup.sh           ← Automated session startup
-    │   ├── session.sh           ← Multi-session registry
-    │   ├── parse_transcripts.py ← .jsonl → readable daily transcripts
-    │   └── landings-dashboard.sh ← Live tmux dashboard for landings
-    ├── skills/
-    │   ├── memory/
-    │   │   ├── SKILL.md         ← Memory skill definition
-    │   │   └── scripts/         ← memory_index.py, memory_search.py, memory_health.py
-    │   └── landings/
-    │       └── SKILL.md         ← Daily landings skill (9-phase workflow)
-    ├── commands/
-    │   ├── hex-startup.md       ← /hex-startup — full session init
-    │   ├── hex-save.md          ← /hex-save — save transcript + index
-    │   ├── hex-shutdown.md      ← /hex-shutdown — clean session close
-    │   ├── hex-sync.md          ← /hex-sync — sync with teams
-    │   ├── hex-create-team.md   ← /hex-create-team — create a new team
-    │   ├── hex-connect-team.md  ← /hex-connect-team — join a team
-    │   ├── hex-context-sync.md  ← /hex-context-sync — weekly context sync
-    │   └── context-save.md      ← /context-save — persist unsaved context
-    ├── hooks/
-    │   ├── hooks.json           ← Backup hooks (UserPromptSubmit + Stop)
-    │   └── scripts/
-    │       └── backup_session.sh
-    └── templates/               ← Reusable document formats
+└── landings/                    ← Daily outcome targets
+    ├── YYYY-MM-DD.md            ← Daily landings with L1-L4 tiers
+    └── weekly/                  ← Weekly target files
+        └── YYYY-WXX.md
 ```

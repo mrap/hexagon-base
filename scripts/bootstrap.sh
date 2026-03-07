@@ -98,8 +98,7 @@ fi
 TODAY=$(date +%Y-%m-%d)
 
 # --- Step 1: Create folder structure ---
-echo "[1/6] Creating folder structure..."
-mkdir -p "$AGENT_DIR"/.claude/commands
+echo "[1/5] Creating folder structure..."
 mkdir -p "$AGENT_DIR"/.sessions
 mkdir -p "$AGENT_DIR"/me/decisions
 mkdir -p "$AGENT_DIR"/raw/{transcripts,messages,calendar,docs}
@@ -107,70 +106,33 @@ mkdir -p "$AGENT_DIR"/people
 mkdir -p "$AGENT_DIR"/projects
 mkdir -p "$AGENT_DIR"/evolution
 mkdir -p "$AGENT_DIR"/landings/weekly
-mkdir -p "$AGENT_DIR"/tools/{scripts,skills/memory/{scripts,references},skills/landings,hooks/scripts}
 info "Done."
 
-# --- Step 2: Set up .claude/ directory ---
-echo "[2/6] Setting up .claude/ directory..."
+# --- Step 2: Install .claude/ directory ---
+echo "[2/5] Installing .claude/ directory..."
 
-# Copy pre-built .claude/ directory (commands, settings)
 if [ -d "$DOT_CLAUDE_DIR" ]; then
-  cp -r "$DOT_CLAUDE_DIR/commands/" "$AGENT_DIR/.claude/"
-  cp "$DOT_CLAUDE_DIR/settings.json" "$AGENT_DIR/.claude/settings.json"
-  # Substitute template vars in any commands that use them
-  for cmd_file in "$AGENT_DIR"/.claude/commands/*.md; do
-    if grep -q '{{NAME}}\|{{AGENT}}\|{{DATE}}' "$cmd_file" 2>/dev/null; then
-      sed -i'' -e "s|{{NAME}}|$NAME|g" -e "s|{{AGENT}}|$AGENT|g" -e "s|{{DATE}}|$TODAY|g" "$cmd_file"
+  # Single recursive copy — dot-claude/ becomes .claude/
+  # Use rsync to exclude __pycache__ (contains compiled paths from source repo)
+  rsync -a --exclude='__pycache__' "$DOT_CLAUDE_DIR/" "$AGENT_DIR/.claude/"
+
+  # Substitute template vars in commands and skills
+  find "$AGENT_DIR/.claude" -name "*.md" -type f | while read -r file; do
+    if grep -q '{{NAME}}\|{{AGENT}}\|{{DATE}}' "$file" 2>/dev/null; then
+      sed -i'' -e "s|{{NAME}}|$NAME|g" -e "s|{{AGENT}}|$AGENT|g" -e "s|{{DATE}}|$TODAY|g" "$file"
     fi
   done
+
+  # Make scripts executable
+  find "$AGENT_DIR/.claude" -name "*.sh" -type f -exec chmod +x {} +
+
   CMDS=$(ls "$DOT_CLAUDE_DIR/commands/"*.md 2>/dev/null | xargs -n1 basename | sed 's/.md//' | tr '\n' ', ' | sed 's/,$//')
   info "Installed commands: $CMDS"
-  info "Installed settings.json with hooks"
+  info "Installed skills, hooks, scripts, and settings"
 fi
 
-# --- Step 3: Install tools ---
-echo "[3/6] Installing tools..."
-
-# Skills: memory system
-if [ -d "$DOT_CLAUDE_DIR/skills/memory" ]; then
-  cp "$DOT_CLAUDE_DIR/skills/memory/SKILL.md" "$AGENT_DIR/tools/skills/memory/" 2>/dev/null || true
-  cp "$DOT_CLAUDE_DIR/skills/memory/scripts/"*.py "$AGENT_DIR/tools/skills/memory/scripts/" 2>/dev/null || true
-  if [ -d "$DOT_CLAUDE_DIR/skills/memory/references" ]; then
-    cp "$DOT_CLAUDE_DIR/skills/memory/references/"*.md "$AGENT_DIR/tools/skills/memory/references/" 2>/dev/null || true
-  fi
-  info "Installed memory skill"
-fi
-
-# Skills: landings system
-if [ -f "$DOT_CLAUDE_DIR/skills/landings/SKILL.md" ]; then
-  sed -e "s|{{NAME}}|$NAME|g" \
-      -e "s|{{AGENT}}|$AGENT|g" \
-      -e "s|{{DATE}}|$TODAY|g" \
-      "$DOT_CLAUDE_DIR/skills/landings/SKILL.md" > "$AGENT_DIR/tools/skills/landings/SKILL.md"
-  info "Installed landings skill"
-fi
-
-# Hook scripts
-if [ -d "$DOT_CLAUDE_DIR/hooks" ]; then
-  if ls "$DOT_CLAUDE_DIR/hooks/scripts/"*.sh 1>/dev/null 2>&1; then
-    cp "$DOT_CLAUDE_DIR/hooks/scripts/"*.sh "$AGENT_DIR/tools/hooks/scripts/"
-    chmod +x "$AGENT_DIR/tools/hooks/scripts/"*.sh
-  fi
-  info "Installed hooks"
-fi
-
-# Core scripts
-if [ -d "$DOT_CLAUDE_DIR/scripts" ]; then
-  cp "$DOT_CLAUDE_DIR/scripts/"*.sh "$AGENT_DIR/tools/scripts/" 2>/dev/null || true
-  cp "$DOT_CLAUDE_DIR/scripts/"*.py "$AGENT_DIR/tools/scripts/" 2>/dev/null || true
-  chmod +x "$AGENT_DIR/tools/scripts/"*.sh 2>/dev/null || true
-  info "Installed scripts (including landings dashboard)"
-fi
-
-info "Done."
-
-# --- Step 4: Generate CLAUDE.md from template ---
-echo "[4/6] Generating CLAUDE.md..."
+# --- Step 3: Generate CLAUDE.md from template ---
+echo "[3/5] Generating CLAUDE.md..."
 if [ -f "$TEMPLATES_DIR/CLAUDE.md.template" ]; then
   sed -e "s|{{NAME}}|$NAME|g" \
       -e "s|{{AGENT}}|$AGENT|g" \
@@ -181,8 +143,8 @@ else
   warn "CLAUDE.md.template not found at $TEMPLATES_DIR. Skipping."
 fi
 
-# --- Step 5: Create skeleton files ---
-echo "[5/6] Creating skeleton files..."
+# --- Step 4: Create skeleton files ---
+echo "[4/5] Creating skeleton files..."
 
 # todo.md
 if [ -f "$TEMPLATES_DIR/todo.md.template" ]; then
@@ -254,8 +216,8 @@ info "Created evolution/ files"
 
 info "Done."
 
-# --- Step 6: Verify ---
-echo "[6/6] Verifying..."
+# --- Step 5: Verify ---
+echo "[5/5] Verifying..."
 MISSING=""
 for f in CLAUDE.md todo.md me/me.md me/learnings.md teams.json .claude/settings.json; do
   if [ ! -f "$AGENT_DIR/$f" ]; then

@@ -21,19 +21,19 @@ description: >
 3. **Save transcript**:
 
 ```bash
-python3 $AGENT_DIR/tools/scripts/parse_transcripts.py
+python3 $AGENT_DIR/.claude/scripts/parse_transcripts.py
 ```
 
 4. **Rebuild memory index**:
 
 ```bash
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_index.py
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_index.py
 ```
 
 5. **Deregister session**:
 
 ```bash
-bash $AGENT_DIR/tools/scripts/session.sh stop
+bash $AGENT_DIR/.claude/scripts/session.sh stop
 ```
 
 6. **Report**: "Session closed. [Summary of what was persisted]."

@@ -10,7 +10,7 @@ description: >
 ## Step 1: Run Startup Script
 
 ```bash
-bash $AGENT_DIR/tools/scripts/startup.sh
+bash $AGENT_DIR/.claude/scripts/startup.sh
 ```
 
 This handles: environment detection, session registration, transcript parsing, memory index rebuild, health check, integration check, and pending improvement suggestions.

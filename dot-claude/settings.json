@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/tools/hooks/scripts/backup_session.sh\""
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/backup_session.sh\""
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/tools/hooks/scripts/backup_session.sh\""
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/backup_session.sh\""
           }
         ]
       }

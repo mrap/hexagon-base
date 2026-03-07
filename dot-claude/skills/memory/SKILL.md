@@ -21,7 +21,7 @@ Persistent, searchable memory stored locally as a SQLite full-text search index.
 ## How to Search
 
 ```bash
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_search.py "query terms"
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_search.py "query terms"
 ```
 
 ### Options
@@ -37,16 +37,16 @@ python3 $AGENT_DIR/tools/skills/memory/scripts/memory_search.py "query terms"
 ## How to Rebuild
 
 ```bash
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_index.py           # Incremental
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_index.py --full     # Full reindex
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_index.py --stats    # Show stats
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_index.py           # Incremental
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_index.py --full     # Full reindex
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_index.py --stats    # Show stats
 ```
 
 ## Health Check
 
 ```bash
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_health.py
-python3 $AGENT_DIR/tools/skills/memory/scripts/memory_health.py --quiet
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_health.py
+python3 $AGENT_DIR/.claude/skills/memory/scripts/memory_health.py --quiet
 ```
 
 Checks: core files exist, index is fresh, no duplicate people, evolution directory healthy.
