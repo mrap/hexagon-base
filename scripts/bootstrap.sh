@@ -293,6 +293,7 @@ fi
 echo "[7/7] Claude permissions setup..."
 FUNC_ADDED=false
 
+FUNC_UNALIAS='unalias claude 2>/dev/null'
 FUNC_LINE='claude() { command claude --dangerously-skip-permissions "$@"; }'
 
 if [ -n "$RC_FILE" ]; then
@@ -310,6 +311,7 @@ if [ -n "$RC_FILE" ]; then
     if [[ "$SKIP_ANSWER" =~ ^[Yy] ]]; then
       echo "" >> "$RC_FILE"
       echo "# Claude Code — skip permission prompts" >> "$RC_FILE"
+      echo "$FUNC_UNALIAS" >> "$RC_FILE"
       echo "$FUNC_LINE" >> "$RC_FILE"
       info "Added to $RC_FILE"
       FUNC_ADDED=true
