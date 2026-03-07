@@ -15,7 +15,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEMPLATES_DIR="$SKILL_DIR/templates"
-PLUGIN_DIR="$SKILL_DIR/plugin"
 DOT_CLAUDE_DIR="$SKILL_DIR/dot-claude"
 
 # --- Helpers ---
@@ -116,7 +115,7 @@ echo "[2/6] Setting up .claude/ directory..."
 
 # Copy pre-built .claude/ directory (commands, settings)
 if [ -d "$DOT_CLAUDE_DIR" ]; then
-  cp -r "$DOT_CLAUDE_DIR/commands" "$AGENT_DIR/.claude/"
+  cp -r "$DOT_CLAUDE_DIR/commands/" "$AGENT_DIR/.claude/"
   cp "$DOT_CLAUDE_DIR/settings.json" "$AGENT_DIR/.claude/settings.json"
   # Substitute template vars in any commands that use them
   for cmd_file in "$AGENT_DIR"/.claude/commands/*.md; do
@@ -133,37 +132,37 @@ fi
 echo "[3/6] Installing tools..."
 
 # Skills: memory system
-if [ -d "$PLUGIN_DIR/skills/memory" ]; then
-  cp "$PLUGIN_DIR/skills/memory/SKILL.md" "$AGENT_DIR/tools/skills/memory/" 2>/dev/null || true
-  cp "$PLUGIN_DIR/skills/memory/scripts/"*.py "$AGENT_DIR/tools/skills/memory/scripts/" 2>/dev/null || true
-  if [ -d "$PLUGIN_DIR/skills/memory/references" ]; then
-    cp "$PLUGIN_DIR/skills/memory/references/"*.md "$AGENT_DIR/tools/skills/memory/references/" 2>/dev/null || true
+if [ -d "$DOT_CLAUDE_DIR/skills/memory" ]; then
+  cp "$DOT_CLAUDE_DIR/skills/memory/SKILL.md" "$AGENT_DIR/tools/skills/memory/" 2>/dev/null || true
+  cp "$DOT_CLAUDE_DIR/skills/memory/scripts/"*.py "$AGENT_DIR/tools/skills/memory/scripts/" 2>/dev/null || true
+  if [ -d "$DOT_CLAUDE_DIR/skills/memory/references" ]; then
+    cp "$DOT_CLAUDE_DIR/skills/memory/references/"*.md "$AGENT_DIR/tools/skills/memory/references/" 2>/dev/null || true
   fi
   info "Installed memory skill"
 fi
 
 # Skills: landings system
-if [ -f "$PLUGIN_DIR/skills/landings/SKILL.md" ]; then
+if [ -f "$DOT_CLAUDE_DIR/skills/landings/SKILL.md" ]; then
   sed -e "s|{{NAME}}|$NAME|g" \
       -e "s|{{AGENT}}|$AGENT|g" \
       -e "s|{{DATE}}|$TODAY|g" \
-      "$PLUGIN_DIR/skills/landings/SKILL.md" > "$AGENT_DIR/tools/skills/landings/SKILL.md"
+      "$DOT_CLAUDE_DIR/skills/landings/SKILL.md" > "$AGENT_DIR/tools/skills/landings/SKILL.md"
   info "Installed landings skill"
 fi
 
 # Hook scripts
-if [ -d "$PLUGIN_DIR/hooks" ]; then
-  if ls "$PLUGIN_DIR/hooks/scripts/"*.sh 1>/dev/null 2>&1; then
-    cp "$PLUGIN_DIR/hooks/scripts/"*.sh "$AGENT_DIR/tools/hooks/scripts/"
+if [ -d "$DOT_CLAUDE_DIR/hooks" ]; then
+  if ls "$DOT_CLAUDE_DIR/hooks/scripts/"*.sh 1>/dev/null 2>&1; then
+    cp "$DOT_CLAUDE_DIR/hooks/scripts/"*.sh "$AGENT_DIR/tools/hooks/scripts/"
     chmod +x "$AGENT_DIR/tools/hooks/scripts/"*.sh
   fi
   info "Installed hooks"
 fi
 
 # Core scripts
-if [ -d "$PLUGIN_DIR/scripts" ]; then
-  cp "$PLUGIN_DIR/scripts/"*.sh "$AGENT_DIR/tools/scripts/" 2>/dev/null || true
-  cp "$PLUGIN_DIR/scripts/"*.py "$AGENT_DIR/tools/scripts/" 2>/dev/null || true
+if [ -d "$DOT_CLAUDE_DIR/scripts" ]; then
+  cp "$DOT_CLAUDE_DIR/scripts/"*.sh "$AGENT_DIR/tools/scripts/" 2>/dev/null || true
+  cp "$DOT_CLAUDE_DIR/scripts/"*.py "$AGENT_DIR/tools/scripts/" 2>/dev/null || true
   chmod +x "$AGENT_DIR/tools/scripts/"*.sh 2>/dev/null || true
   info "Installed scripts (including landings dashboard)"
 fi

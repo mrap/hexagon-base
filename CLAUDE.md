@@ -35,15 +35,14 @@ The created workspace has no symlinks back to this repo. Everything is copied in
 
 ### Key Directories
 
-- **`dot-claude/`** — Pre-built `.claude/` directory copied into workspace:
+- **`dot-claude/`** — Everything that gets copied into the workspace:
   - `commands/` — Slash command definitions (markdown files with YAML frontmatter)
-  - `settings.json.template` — Settings template with `{{AGENT_DIR}}` placeholder for hook paths
+  - `settings.json` — Settings with hooks config
+  - `skills/` — Skill definitions and scripts (memory, landings)
+  - `hooks/` — Event hook scripts (transcript backup)
+  - `scripts/` — Runtime scripts (startup.sh, session.sh, parse_transcripts.py, landings-dashboard.sh)
 - **`templates/`** — Templates with `{{VAR}}` placeholders, processed by `bootstrap.sh` via `sed`
 - **`scripts/`** — Bootstrap script only. Not copied into agent workspace.
-- **`plugin/`** — Everything that gets copied into the agent's `tools/` directory:
-  - `hooks/` — Event hook scripts
-  - `scripts/` — Runtime scripts (startup.sh, session.sh, parse_transcripts.py)
-  - `skills/memory/` — Memory system (SQLite FTS5 indexer, search, health check)
 - **`tests/`** — Eval suite (run_evals.sh, eval_wizard.sh)
 
 ### How It Works
@@ -52,7 +51,7 @@ Claude Code natively reads `.claude/commands/` for slash commands and `.claude/s
 
 ### Memory System (Python, stdlib only)
 
-Three scripts in `plugin/skills/memory/scripts/`:
+Three scripts in `dot-claude/skills/memory/scripts/`:
 - `memory_index.py` — Indexes all `.md`/`.txt` files into SQLite FTS5, chunked by heading. Incremental by default.
 - `memory_search.py` — BM25-ranked full-text search with file filtering, privacy mode, context display.
 - `memory_health.py` — Checks core files exist, index freshness, duplicate detection.
@@ -69,16 +68,16 @@ bash scripts/bootstrap.sh --agent testuser --name "Test User" --path /tmp/hexago
 wc -l templates/CLAUDE.md.template
 
 # Check Python script syntax
-python3 -m py_compile plugin/skills/memory/scripts/memory_index.py
-python3 -m py_compile plugin/skills/memory/scripts/memory_search.py
-python3 -m py_compile plugin/skills/memory/scripts/memory_health.py
-python3 -m py_compile plugin/scripts/parse_transcripts.py
+python3 -m py_compile dot-claude/skills/memory/scripts/memory_index.py
+python3 -m py_compile dot-claude/skills/memory/scripts/memory_search.py
+python3 -m py_compile dot-claude/skills/memory/scripts/memory_health.py
+python3 -m py_compile dot-claude/scripts/parse_transcripts.py
 
 # Check shell script syntax
 bash -n scripts/bootstrap.sh
-bash -n plugin/scripts/startup.sh
-bash -n plugin/scripts/session.sh
-bash -n plugin/hooks/scripts/backup_session.sh
+bash -n dot-claude/scripts/startup.sh
+bash -n dot-claude/scripts/session.sh
+bash -n dot-claude/hooks/scripts/backup_session.sh
 
 # Test memory system after bootstrap
 python3 /tmp/hexagon-test/testuser/tools/skills/memory/scripts/memory_index.py
@@ -98,5 +97,5 @@ Only three variables are used across all templates:
 - `CLAUDE.md.template` must stay under 600 lines (currently ~528)
 - Python scripts must use only stdlib (no pip dependencies)
 - Must work on both macOS and Linux (path detection, stat flags differ)
-- Bootstrap must be idempotent for plugin components but refuse to overwrite an existing agent workspace
+- Bootstrap must refuse to overwrite an existing agent workspace
 - The created workspace must be fully self-contained — no references back to this seed repo

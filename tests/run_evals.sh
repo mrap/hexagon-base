@@ -42,7 +42,7 @@ eval_syntax() {
   header "Syntax Checks"
 
   # Shell scripts
-  for script in scripts/bootstrap.sh plugin/scripts/startup.sh plugin/scripts/session.sh plugin/hooks/scripts/backup_session.sh plugin/scripts/landings-dashboard.sh; do
+  for script in scripts/bootstrap.sh dot-claude/scripts/startup.sh dot-claude/scripts/session.sh dot-claude/hooks/scripts/backup_session.sh dot-claude/scripts/landings-dashboard.sh; do
     if bash -n "$REPO_DIR/$script" 2>/dev/null; then
       pass "bash -n $script"
     else
@@ -51,7 +51,7 @@ eval_syntax() {
   done
 
   # Python scripts
-  for script in plugin/skills/memory/scripts/memory_index.py plugin/skills/memory/scripts/memory_search.py plugin/skills/memory/scripts/memory_health.py plugin/scripts/parse_transcripts.py; do
+  for script in dot-claude/skills/memory/scripts/memory_index.py dot-claude/skills/memory/scripts/memory_search.py dot-claude/skills/memory/scripts/memory_health.py dot-claude/scripts/parse_transcripts.py; do
     if python3 -m py_compile "$REPO_DIR/$script" 2>/dev/null; then
       pass "py_compile $script"
     else
@@ -822,9 +822,9 @@ eval_templates() {
   fi
 
   # Landings SKILL.md content checks
-  LANDINGS_SKILL="$REPO_DIR/plugin/skills/landings/SKILL.md"
+  LANDINGS_SKILL="$REPO_DIR/dot-claude/skills/landings/SKILL.md"
   if [ -f "$LANDINGS_SKILL" ]; then
-    pass "landings SKILL.md exists in plugin"
+    pass "landings SKILL.md exists in dot-claude"
 
     # Check all phases exist
     PHASES_FOUND=0
@@ -880,7 +880,7 @@ eval_templates() {
       fail "landings SKILL.md missing YAML frontmatter"
     fi
   else
-    fail "landings SKILL.md exists in plugin"
+    fail "landings SKILL.md exists in dot-claude"
   fi
 
   # Context sync command exists
@@ -934,7 +934,7 @@ eval_distribution() {
     pass "no .env file"
   fi
 
-  if grep -rqP '\bsk-[a-zA-Z0-9]{20,}\b|api_key\s*=\s*["\x27]\S+|password\s*=\s*["\x27]\S+' "$REPO_DIR/scripts/" "$REPO_DIR/plugin/" 2>/dev/null; then
+  if grep -rqP '\bsk-[a-zA-Z0-9]{20,}\b|api_key\s*=\s*["\x27]\S+|password\s*=\s*["\x27]\S+' "$REPO_DIR/scripts/" "$REPO_DIR/dot-claude/" 2>/dev/null; then
     fail "possible secrets in code"
   else
     pass "no secrets detected in scripts"
@@ -942,7 +942,7 @@ eval_distribution() {
 
   # Python scripts use only stdlib
   header "Distribution — No External Dependencies"
-  NON_STDLIB=$(grep -rh "^import \|^from " "$REPO_DIR/plugin/" 2>/dev/null | \
+  NON_STDLIB=$(grep -rh "^import \|^from " "$REPO_DIR/dot-claude/" 2>/dev/null | \
     grep -v -E "^(import (os|sys|sqlite3|re|json|argparse|shutil|hashlib|datetime|pathlib|textwrap|collections|subprocess)|from (pathlib|datetime|collections) )" | \
     sort -u || true)
   if [ -z "$NON_STDLIB" ]; then

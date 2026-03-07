@@ -82,12 +82,12 @@ The installer creates this workspace:
 
 ## Architecture
 
-Hexagon Base is a Claude Code **plugin**. Plugins are directories with a `.claude-plugin/plugin.json` manifest that tells Claude Code what capabilities are available.
+Hexagon Base bootstraps a self-contained workspace. Claude Code natively reads `.claude/commands/` for slash commands and `.claude/settings.json` for hooks — no plugin manifest needed.
 
-When Claude Code opens a directory with a plugin, it automatically loads:
+The workspace includes:
 
-- **Skills** — Capabilities the agent can use (like the memory search system)
 - **Commands** — Slash commands you can type (like `/hex-startup`)
+- **Skills** — Capabilities the agent can use (like the memory search system)
 - **Hooks** — Scripts that run automatically on events (like backing up transcripts)
 
 Everything runs locally. No external services required. No API keys to configure. Your data stays on your machine.

@@ -28,22 +28,22 @@ Result: NO META REFERENCES FOUND
 | scripts/bootstrap.sh | OK |
 | SKILL.md | OK |
 | README.md | OK |
-| plugin/scripts/startup.sh | OK |
-| plugin/scripts/session.sh | OK |
-| plugin/scripts/parse_transcripts.py | OK |
-| plugin/skills/memory/scripts/memory_index.py | OK |
-| plugin/skills/memory/scripts/memory_search.py | OK |
-| plugin/skills/memory/scripts/memory_health.py | OK |
-| plugin/skills/memory/SKILL.md | OK |
-| plugin/commands/hex-startup.md | OK |
-| plugin/commands/hex-save.md | OK |
-| plugin/commands/hex-shutdown.md | OK |
-| plugin/commands/context-save.md | OK |
-| plugin/commands/hex-sync.md | OK |
-| plugin/commands/hex-connect-team.md | OK |
-| plugin/commands/hex-create-team.md | OK |
-| plugin/hooks/hooks.json | OK |
-| plugin/hooks/scripts/backup_session.sh | OK |
+| dot-claude/scripts/startup.sh | OK |
+| dot-claude/scripts/session.sh | OK |
+| dot-claude/scripts/parse_transcripts.py | OK |
+| dot-claude/skills/memory/scripts/memory_index.py | OK |
+| dot-claude/skills/memory/scripts/memory_search.py | OK |
+| dot-claude/skills/memory/scripts/memory_health.py | OK |
+| dot-claude/skills/memory/SKILL.md | OK |
+| dot-claude/commands/hex-startup.md | OK |
+| dot-claude/commands/hex-save.md | OK |
+| dot-claude/commands/hex-shutdown.md | OK |
+| dot-claude/commands/context-save.md | OK |
+| dot-claude/commands/hex-sync.md | OK |
+| dot-claude/commands/hex-connect-team.md | OK |
+| dot-claude/commands/hex-create-team.md | OK |
+| dot-claude/hooks/hooks.json | OK |
+| dot-claude/hooks/scripts/backup_session.sh | OK |
 
 ### 3. CLAUDE.md Line Count
 
@@ -255,16 +255,16 @@ Hexagon Base is a complete, open-source AI agent framework for Claude Code. 22 f
 | scripts/bootstrap.sh | 323 | Creates full agent workspace. Idempotent, cross-platform. |
 | SKILL.md | 49 | Bootstrap skill. 3-step setup via /hexagon command. |
 | README.md | 159 | Beginner-friendly docs. Explains plugins, architecture, philosophy. |
-| plugin/scripts/startup.sh | 346 | Automated session startup with 7 steps, colored output, options. |
-| plugin/scripts/session.sh | 148 | Multi-session registry. Start, check, stop, cleanup. |
-| plugin/scripts/parse_transcripts.py | 336 | .jsonl to daily markdown parser. Incremental, merges by day. |
-| plugin/skills/memory/memory_index.py | 298 | SQLite FTS5 indexer. Chunked by heading, incremental. |
-| plugin/skills/memory/memory_search.py | 174 | BM25-ranked search with filtering and privacy mode. |
-| plugin/skills/memory/memory_health.py | 190 | Health checks: core files, freshness, duplicates, index stats. |
-| plugin/skills/memory/SKILL.md | 60 | Memory skill definition. |
-| plugin/commands/ (7 files) | 238 | Slash commands for session lifecycle and team management. |
-| plugin/hooks/hooks.json | 26 | Transcript backup on UserPromptSubmit + Stop. |
-| plugin/hooks/scripts/backup_session.sh | 35 | Cross-platform session backup. |
+| dot-claude/scripts/startup.sh | 346 | Automated session startup with 7 steps, colored output, options. |
+| dot-claude/scripts/session.sh | 148 | Multi-session registry. Start, check, stop, cleanup. |
+| dot-claude/scripts/parse_transcripts.py | 336 | .jsonl to daily markdown parser. Incremental, merges by day. |
+| dot-claude/skills/memory/memory_index.py | 298 | SQLite FTS5 indexer. Chunked by heading, incremental. |
+| dot-claude/skills/memory/memory_search.py | 174 | BM25-ranked search with filtering and privacy mode. |
+| dot-claude/skills/memory/memory_health.py | 190 | Health checks: core files, freshness, duplicates, index stats. |
+| dot-claude/skills/memory/SKILL.md | 60 | Memory skill definition. |
+| dot-claude/commands/ (7 files) | 238 | Slash commands for session lifecycle and team management. |
+| dot-claude/hooks/hooks.json | 26 | Transcript backup on UserPromptSubmit + Stop. |
+| dot-claude/hooks/scripts/backup_session.sh | 35 | Cross-platform session backup. |
 | VALIDATION.md | — | This file. |
 
 ### Decisions Made
