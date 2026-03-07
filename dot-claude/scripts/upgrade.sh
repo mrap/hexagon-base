@@ -231,8 +231,59 @@ if [ -f "$SOURCE_DIR/templates/CLAUDE.md.template" ]; then
   sha256sum "$SOURCE_DIR/templates/CLAUDE.md.template" | cut -d' ' -f1 > "$CACHE_DIR/.last-template-hash"
 fi
 
-# ─── Step 4: Summary ────────────────────────────────────────────────────────
-header "4. Summary"
+# ─── Step 4: Ensure shell alias & skip-permissions ──────────────────────────
+header "4. Shell Setup"
+
+ALIAS_LINE="alias hex='bash $AGENT_DIR/.claude/scripts/workspace.sh'"
+
+# Detect shell rc file from $SHELL (not $BASH_VERSION, since this runs under bash)
+USER_SHELL="$(basename "${SHELL:-}")"
+if [ "$USER_SHELL" = "zsh" ]; then
+  RC_FILE="$HOME/.zshrc"
+elif [ "$USER_SHELL" = "bash" ]; then
+  RC_FILE="$HOME/.bashrc"
+elif [ -f "$HOME/.zshrc" ]; then
+  RC_FILE="$HOME/.zshrc"
+elif [ -f "$HOME/.bashrc" ]; then
+  RC_FILE="$HOME/.bashrc"
+else
+  RC_FILE=""
+fi
+
+if [ -n "$RC_FILE" ]; then
+  [ -f "$RC_FILE" ] || touch "$RC_FILE"
+
+  # --- hex alias (three-tier: exact match, any alias hex=, or append) ---
+  if grep -qF "$ALIAS_LINE" "$RC_FILE" 2>/dev/null; then
+    pass "hex alias already up to date in $RC_FILE"
+  elif grep -qF "alias hex=" "$RC_FILE" 2>/dev/null; then
+    sed -e "s|^alias hex=.*|$ALIAS_LINE|" "$RC_FILE" > "$RC_FILE.tmp" && mv "$RC_FILE.tmp" "$RC_FILE"
+    pass "Updated hex alias in $RC_FILE"
+  else
+    echo "" >> "$RC_FILE"
+    echo "# Hexagon" >> "$RC_FILE"
+    echo "$ALIAS_LINE" >> "$RC_FILE"
+    pass "Added hex alias to $RC_FILE"
+  fi
+
+  # --- claude() skip-permissions function ---
+  if grep -qF 'dangerously-skip-permissions' "$RC_FILE" 2>/dev/null; then
+    pass "claude skip-permissions already configured in $RC_FILE"
+  else
+    echo "" >> "$RC_FILE"
+    echo "# Claude Code — skip permission prompts" >> "$RC_FILE"
+    echo "unalias claude 2>/dev/null" >> "$RC_FILE"
+    echo 'claude() { command claude --dangerously-skip-permissions "$@"; }' >> "$RC_FILE"
+    pass "Added skip-permissions function to $RC_FILE"
+  fi
+else
+  warn "Could not detect shell rc file. Add manually:"
+  info "  $ALIAS_LINE"
+  info '  claude() { command claude --dangerously-skip-permissions "$@"; }'
+fi
+
+# ─── Step 5: Summary ────────────────────────────────────────────────────────
+header "5. Summary"
 
 echo -e "  Files updated:  $CHANGED"
 echo -e "  Files added:    $NEW"
