@@ -1,0 +1,38 @@
+{% if not entries %}
+<div class="card">
+  <p class="placeholder-text">No files found.</p>
+</div>
+{% else %}
+{% for e in entries %}
+{% if e.is_dir %}
+<div class="file-tree-item file-tree-dir" id="dir-{{ e.rel_path | replace('/', '-') | replace('.', '_') }}">
+  <div class="file-tree-row"
+       hx-get="/api/files/tree?path={{ e.rel_path | urlencode }}"
+       hx-target="#dir-{{ e.rel_path | replace('/', '-') | replace('.', '_') }}-children"
+       hx-swap="innerHTML"
+       hx-on::after-request="
+         var el = this.closest('.file-tree-dir');
+         if (el.classList.contains('expanded')) {
+           el.classList.remove('expanded');
+           document.getElementById('dir-{{ e.rel_path | replace('/', '-') | replace('.', '_') }}-children').innerHTML = '';
+         } else {
+           el.classList.add('expanded');
+         }
+       ">
+    <span class="file-tree-icon file-tree-chevron">&#x25B6;</span>
+    <span class="file-tree-icon">&#x1F4C1;</span>
+    <span class="file-tree-name">{{ e.name }}</span>
+  </div>
+  <div class="file-tree-children" id="dir-{{ e.rel_path | replace('/', '-') | replace('.', '_') }}-children"></div>
+</div>
+{% else %}
+<div class="file-tree-item file-tree-file">
+  <a class="file-tree-row file-tree-link" href="/files/{{ e.rel_path }}">
+    <span class="file-tree-icon file-tree-chevron-spacer"></span>
+    <span class="file-tree-icon">{% if e.ext == '.md' %}&#x1F4DD;{% elif e.ext == '.py' %}&#x1F40D;{% elif e.ext == '.json' %}&#x1F4CB;{% elif e.ext in ('.js', '.ts') %}&#x2699;{% elif e.ext == '.sh' %}&#x1F4BB;{% else %}&#x1F4C4;{% endif %}</span>
+    <span class="file-tree-name">{{ e.name }}</span>
+  </a>
+</div>
+{% endif %}
+{% endfor %}
+{% endif %}

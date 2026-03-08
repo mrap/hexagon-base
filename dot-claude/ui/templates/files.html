@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Files — Hex{% endblock %}
+{% block content %}
+<h1 class="page-title">Files</h1>
+<div class="search-box" style="margin-bottom: 20px;">
+  <span class="search-icon">&#x1F50D;</span>
+  <input type="text"
+         id="file-search-query"
+         name="q"
+         class="search-input"
+         placeholder="Search files..."
+         autocomplete="off"
+         hx-get="/api/files/search"
+         hx-trigger="keyup changed delay:250ms"
+         hx-target="#file-search-results"
+         hx-swap="innerHTML"
+         hx-indicator="#file-search-spinner"
+         oninput="
+           var results = document.getElementById('file-search-results');
+           var tree = document.getElementById('file-tree');
+           if (this.value.trim().length >= 2) {
+             results.style.display = 'block';
+             tree.style.display = 'none';
+           } else {
+             results.style.display = 'none';
+             tree.style.display = 'block';
+           }
+         ">
+  <span id="file-search-spinner" class="htmx-indicator search-spinner">&#x23F3;</span>
+</div>
+<div id="file-search-results" style="display: none;"></div>
+<div id="file-tree" class="file-tree"
+     hx-get="/api/files/tree"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+  <p class="placeholder-text">Loading...</p>
+</div>
+{% endblock %}

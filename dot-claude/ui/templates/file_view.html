@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ file.name }} — Hex{% endblock %}
+{% block content %}
+<div class="file-view">
+  <!-- Breadcrumbs -->
+  <nav class="file-breadcrumbs">
+    <a href="/files" class="breadcrumb-link">Files</a>
+    {% for crumb in file.breadcrumbs %}
+    <span class="breadcrumb-sep">/</span>
+    {% if crumb.is_dir %}
+    <a href="/files" class="breadcrumb-link">{{ crumb.name }}</a>
+    {% else %}
+    <span class="breadcrumb-current">{{ crumb.name }}</span>
+    {% endif %}
+    {% endfor %}
+  </nav>
+
+  <!-- File content -->
+  {% include "partials/file_content.html" %}
+</div>
+{% endblock %}

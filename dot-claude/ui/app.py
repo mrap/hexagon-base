@@ -12,6 +12,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import markdown as md_lib
+
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -316,6 +318,272 @@ def read_person_detail(ws: Path, person_name: str) -> dict:
     return {"name": person_name, "profile": profile}
 
 
+# ─── File browser ────────────────────────────────────────────────────────────
+
+# Patterns to exclude from file browser
+_EXCLUDE_NAMES = {".git", "__pycache__", ".sessions", "node_modules", ".venv", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
+_EXCLUDE_PATHS = {".claude/memory.db"}
+_BINARY_EXTENSIONS = {".pyc", ".pyo", ".so", ".dylib", ".dll", ".exe", ".bin", ".db", ".sqlite", ".sqlite3", ".jpg", ".jpeg", ".png", ".gif", ".ico", ".bmp", ".tiff", ".webp", ".mp3", ".mp4", ".wav", ".avi", ".mov", ".zip", ".gz", ".tar", ".bz2", ".xz", ".7z", ".rar", ".woff", ".woff2", ".ttf", ".eot", ".pdf"}
+
+
+def list_directory(ws: Path, rel_path: str = "") -> list[dict]:
+    """List contents of a directory relative to workspace root.
+
+    Returns a sorted list of dicts with keys: name, rel_path, is_dir, ext.
+    Directories come first, then files, both sorted alphabetically.
+    """
+    target = ws / rel_path if rel_path else ws
+    if not target.is_dir() or not str(target.resolve()).startswith(str(ws.resolve())):
+        return []
+
+    entries = []
+    try:
+        for item in target.iterdir():
+            name = item.name
+            item_rel = str(item.relative_to(ws))
+
+            # Skip excluded names and hidden files in root
+            if name in _EXCLUDE_NAMES:
+                continue
+            if item_rel in _EXCLUDE_PATHS:
+                continue
+            # Skip hidden files/dirs (dotfiles) except at root level for known ones
+            if name.startswith(".") and name not in (".claude",):
+                continue
+
+            is_dir = item.is_dir()
+            ext = item.suffix.lower() if not is_dir else ""
+
+            # Skip binary files
+            if not is_dir and ext in _BINARY_EXTENSIONS:
+                continue
+
+            entries.append({
+                "name": name,
+                "rel_path": item_rel,
+                "is_dir": is_dir,
+                "ext": ext,
+            })
+    except PermissionError:
+        return []
+
+    # Sort: directories first, then files, alphabetically
+    entries.sort(key=lambda e: (not e["is_dir"], e["name"].lower()))
+    return entries
+
+
+def search_files(ws: Path, query: str, limit: int = 50) -> list[dict]:
+    """Recursively search the workspace for files matching query in name or path.
+
+    Returns a flat list of matching files sorted by relevance (name match first, then path match).
+    """
+    if not query or len(query.strip()) < 2:
+        return []
+
+    query = query.strip().lower()
+    name_matches = []
+    path_matches = []
+
+    def walk(directory: Path, rel_prefix: str = ""):
+        try:
+            entries = sorted(directory.iterdir(), key=lambda p: p.name.lower())
+        except (PermissionError, OSError):
+            return
+
+        for item in entries:
+            name = item.name
+            item_rel = f"{rel_prefix}/{name}".lstrip("/") if rel_prefix else name
+
+            if name in _EXCLUDE_NAMES:
+                continue
+            if item_rel in _EXCLUDE_PATHS:
+                continue
+            if name.startswith(".") and name not in (".claude",):
+                continue
+
+            is_dir = item.is_dir()
+            ext = item.suffix.lower() if not is_dir else ""
+
+            if is_dir:
+                walk(item, item_rel)
+                continue
+
+            if ext in _BINARY_EXTENSIONS:
+                continue
+
+            name_lower = name.lower()
+            path_lower = item_rel.lower()
+
+            if query in name_lower:
+                name_matches.append({
+                    "name": name,
+                    "rel_path": item_rel,
+                    "is_dir": False,
+                    "ext": ext,
+                })
+            elif query in path_lower:
+                path_matches.append({
+                    "name": name,
+                    "rel_path": item_rel,
+                    "is_dir": False,
+                    "ext": ext,
+                })
+
+            if len(name_matches) + len(path_matches) >= limit:
+                return
+
+    walk(ws)
+    return (name_matches + path_matches)[:limit]
+
+
+_CODE_EXTENSIONS = {".py", ".sh", ".js", ".ts", ".jsx", ".tsx", ".css", ".html", ".yml", ".yaml", ".toml", ".cfg", ".ini", ".rb", ".rs", ".go", ".java", ".c", ".h", ".cpp", ".hpp"}
+
+_LANG_MAP = {
+    ".py": "python", ".sh": "bash", ".js": "javascript", ".ts": "typescript",
+    ".jsx": "javascript", ".tsx": "typescript", ".css": "css", ".html": "html",
+    ".yml": "yaml", ".yaml": "yaml", ".toml": "toml", ".rb": "ruby",
+    ".rs": "rust", ".go": "go", ".java": "java", ".c": "c", ".h": "c",
+    ".cpp": "cpp", ".hpp": "cpp",
+}
+
+
+# ─── Syntax highlighting ─────────────────────────────────────────────────────
+
+_KW = {k: set(v.split()) for k, v in {
+    "python": "False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield",
+    "javascript": "async await break case catch class const continue default delete do else export extends false finally for from function if import in instanceof let new null of return super switch this throw true try typeof undefined var void while yield",
+    "typescript": "abstract any async await boolean break case catch class const continue declare default delete do else enum export extends false finally for from function if implements import in instanceof interface let namespace new null number of private protected public readonly return static string super switch this throw true try type typeof undefined var void while yield",
+    "go": "break case chan const continue default defer else fallthrough for func go goto if import interface map package range return select struct switch type var true false nil iota",
+    "rust": "as async await break const continue crate dyn else enum extern false fn for if impl in let loop match mod move mut pub ref return self static struct super trait true type unsafe use where while",
+    "bash": "case do done elif else esac fi for function if in select then until while return exit export local declare",
+    "c": "auto break case char const continue default do double else enum extern float for goto if int long register return short signed sizeof static struct switch typedef union unsigned void volatile while",
+    "cpp": "auto break case catch char class const continue default delete do double else enum explicit extern false float for friend goto if inline int long mutable namespace new nullptr operator private protected public return short signed sizeof static struct switch template this throw true try typedef typename union unsigned using virtual void volatile while",
+    "java": "abstract assert boolean break byte case catch char class continue default do double else enum extends false final finally float for if implements import instanceof int interface long native new null package private protected public return short static super switch synchronized this throw throws transient true try void volatile while",
+    "ruby": "alias and begin break case class def do else elsif end ensure false for if in module next nil not or redo rescue retry return self super then true undef unless until when while yield",
+    "json": "true false null",
+    "yaml": "true false null",
+    "toml": "true false",
+}.items()}
+
+_HASH_CMT = {"python", "bash", "yaml", "toml", "ruby"}
+_SLASH_CMT = {"javascript", "typescript", "go", "rust", "c", "cpp", "java"}
+_BLOCK_CMT = {"javascript", "typescript", "go", "rust", "c", "cpp", "java", "css"}
+_HL_CACHE: dict = {}
+
+
+def tokenize_code(raw: str, language: str) -> str:
+    """Regex-based syntax highlighting. Returns HTML with <span class='tok-*'> wrappers."""
+    if not language or language not in _KW:
+        return html_mod.escape(raw)
+
+    if language not in _HL_CACHE:
+        rules: list[tuple[str, str]] = []
+        if language in _BLOCK_CMT:
+            rules.append((r'/\*[\s\S]*?\*/', 'comment'))
+        if language == 'html':
+            rules.append((r'<!--[\s\S]*?-->', 'comment'))
+        if language in _HASH_CMT:
+            rules.append((r'#[^\n]*', 'comment'))
+        elif language in _SLASH_CMT:
+            rules.append((r'//[^\n]*', 'comment'))
+        if language == 'python':
+            rules.append((r'"""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\'', 'string'))
+        if language in ('javascript', 'typescript'):
+            rules.append((r'`(?:[^`\\]|\\.)*`', 'string'))
+        rules.append((r'"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\\n]|\\.)*\'', 'string'))
+        rules.append((r'\b(?:0[xX][0-9a-fA-F]+|\d+\.?\d*(?:[eE][+-]?\d+)?)\b', 'number'))
+        kw = _KW.get(language)
+        if kw:
+            alt = '|'.join(re.escape(k) for k in sorted(kw, key=len, reverse=True))
+            rules.append((rf'\b(?:{alt})\b', 'keyword'))
+        if rules:
+            combined = '|'.join(f'({p})' for p, _ in rules)
+            _HL_CACHE[language] = (re.compile(combined, re.MULTILINE), [t for _, t in rules])
+        else:
+            _HL_CACHE[language] = None
+
+    cached = _HL_CACHE[language]
+    if not cached:
+        return html_mod.escape(raw)
+
+    regex, types = cached
+    parts: list[str] = []
+    last = 0
+    for m in regex.finditer(raw):
+        if m.start() > last:
+            parts.append(html_mod.escape(raw[last:m.start()]))
+        tok = ''
+        for i, t in enumerate(types, 1):
+            if m.group(i) is not None:
+                tok = t
+                break
+        escaped = html_mod.escape(m.group())
+        parts.append(f'<span class="tok-{tok}">{escaped}</span>' if tok else escaped)
+        last = m.end()
+    if last < len(raw):
+        parts.append(html_mod.escape(raw[last:]))
+    return ''.join(parts)
+
+
+def read_file_content(ws: Path, rel_path: str) -> dict:
+    """Read a file and return rendered content with metadata.
+
+    Returns dict with keys: name, rel_path, breadcrumbs, render_type, content, language.
+    render_type is one of: markdown, json, code, text, binary.
+    """
+    target = (ws / rel_path).resolve()
+    if not str(target).startswith(str(ws.resolve())) or not target.is_file():
+        return {"name": "", "rel_path": rel_path, "breadcrumbs": [], "render_type": "error", "content": "File not found.", "language": ""}
+
+    ext = target.suffix.lower()
+    name = target.name
+
+    # Build breadcrumbs
+    parts = Path(rel_path).parts
+    breadcrumbs = []
+    for i, part in enumerate(parts[:-1]):
+        breadcrumbs.append({"name": part, "path": "/".join(parts[:i+1]), "is_dir": True})
+    breadcrumbs.append({"name": name, "path": rel_path, "is_dir": False})
+
+    # Check if binary
+    if ext in _BINARY_EXTENSIONS:
+        return {"name": name, "rel_path": rel_path, "breadcrumbs": breadcrumbs, "render_type": "binary", "content": "Binary file — cannot display.", "language": ""}
+
+    # Try to read as text
+    try:
+        raw = target.read_text(encoding="utf-8", errors="strict")
+    except (UnicodeDecodeError, ValueError):
+        return {"name": name, "rel_path": rel_path, "breadcrumbs": breadcrumbs, "render_type": "binary", "content": "Binary file — cannot display.", "language": ""}
+    except OSError:
+        return {"name": name, "rel_path": rel_path, "breadcrumbs": breadcrumbs, "render_type": "error", "content": "Could not read file.", "language": ""}
+
+    # Render based on type
+    if ext == ".md":
+        rendered = md_lib.markdown(
+            raw,
+            extensions=["tables", "fenced_code", "nl2br", "sane_lists"],
+        )
+        return {"name": name, "rel_path": rel_path, "breadcrumbs": breadcrumbs, "render_type": "markdown", "content": rendered, "language": ""}
+
+    if ext == ".json":
+        try:
+            parsed = json.loads(raw)
+            pretty = json.dumps(parsed, indent=2, ensure_ascii=False)
+        except json.JSONDecodeError:
+            pretty = raw
+        return {"name": name, "rel_path": rel_path, "breadcrumbs": breadcrumbs, "render_type": "json", "content": tokenize_code(pretty, "json"), "language": "json"}
+
+    if ext in _CODE_EXTENSIONS:
+        lang = _LANG_MAP.get(ext, "")
+        return {"name": name, "rel_path": rel_path, "breadcrumbs": breadcrumbs, "render_type": "code", "content": tokenize_code(raw, lang), "language": lang}
+
+    if ext == ".txt":
+        return {"name": name, "rel_path": rel_path, "breadcrumbs": breadcrumbs, "render_type": "text", "content": html_mod.escape(raw), "language": ""}
+
+    # Fallback: try to display as plain text
+    return {"name": name, "rel_path": rel_path, "breadcrumbs": breadcrumbs, "render_type": "text", "content": html_mod.escape(raw), "language": ""}
+
+
 # ─── Memory search ──────────────────────────────────────────────────────────
 
 
@@ -505,7 +773,50 @@ def create_app(workspace: Path | None = None) -> FastAPI:
             },
         )
 
+    @app.get("/files")
+    async def files_page(request: Request):
+        return templates.TemplateResponse(
+            "files.html",
+            {
+                "request": request,
+                "page": "files",
+                "workspace": str(ws),
+            },
+        )
+
     # ─── API routes (HTMX partials) ───────────────────────────────────
+
+    @app.get("/api/files/tree")
+    async def api_files_tree(request: Request, path: str = ""):
+        """Return HTMX partial with directory listing."""
+        entries = list_directory(ws, path)
+        return templates.TemplateResponse(
+            "partials/file_tree.html",
+            {"request": request, "entries": entries, "parent_path": path},
+        )
+
+    @app.get("/api/files/search")
+    async def api_files_search(request: Request, q: str = ""):
+        """Return HTMX partial with file search results."""
+        results = search_files(ws, q)
+        return templates.TemplateResponse(
+            "partials/file_search_results.html",
+            {"request": request, "results": results, "query": q},
+        )
+
+    @app.get("/files/{file_path:path}")
+    async def file_view(request: Request, file_path: str):
+        """Render a single file with type-appropriate formatting."""
+        file_data = read_file_content(ws, file_path)
+        return templates.TemplateResponse(
+            "file_view.html",
+            {
+                "request": request,
+                "page": "files",
+                "workspace": str(ws),
+                "file": file_data,
+            },
+        )
 
     @app.get("/api/landings")
     async def api_landings(request: Request):

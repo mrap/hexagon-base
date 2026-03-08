@@ -1,0 +1,39 @@
+{% if file.render_type == "error" %}
+<div class="card">
+  <p class="placeholder-text">{{ file.content }}</p>
+</div>
+
+{% elif file.render_type == "binary" %}
+<div class="card">
+  <p class="placeholder-text">{{ file.content }}</p>
+</div>
+
+{% elif file.render_type == "markdown" %}
+<div class="card file-content-card">
+  <div class="markdown-body">
+    {{ file.content | safe }}
+  </div>
+</div>
+
+{% elif file.render_type == "json" %}
+<div class="card file-content-card">
+  <div class="file-content-header">
+    <span class="file-content-lang">JSON</span>
+  </div>
+  <pre class="code-block"><code class="language-json">{{ file.content | safe }}</code></pre>
+</div>
+
+{% elif file.render_type == "code" %}
+<div class="card file-content-card">
+  <div class="file-content-header">
+    <span class="file-content-lang">{{ file.language }}</span>
+  </div>
+  <pre class="code-block"><code class="language-{{ file.language }}">{{ file.content | safe }}</code></pre>
+</div>
+
+{% elif file.render_type == "text" %}
+<div class="card file-content-card">
+  <pre class="code-block code-block-plain">{{ file.content | safe }}</pre>
+</div>
+
+{% endif %}

@@ -1,0 +1,12 @@
+{% if not results and query %}
+<p class="placeholder-text">No files matching "{{ query }}"</p>
+{% elif results %}
+<div class="search-results-header">{{ results|length }} file{{ 's' if results|length != 1 else '' }} matching "{{ query }}"</div>
+{% for r in results %}
+<a class="file-search-result" href="/files/{{ r.rel_path }}">
+  <span class="file-tree-icon">{% if r.ext == '.md' %}&#x1F4DD;{% elif r.ext == '.py' %}&#x1F40D;{% elif r.ext == '.json' %}&#x1F4CB;{% elif r.ext in ('.js', '.ts') %}&#x2699;{% elif r.ext == '.sh' %}&#x1F4BB;{% else %}&#x1F4C4;{% endif %}</span>
+  <span class="file-search-name">{{ r.name }}</span>
+  <span class="file-search-path">{{ r.rel_path }}</span>
+</a>
+{% endfor %}
+{% endif %}
