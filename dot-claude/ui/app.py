@@ -749,12 +749,14 @@ def create_app(workspace: Path | None = None) -> FastAPI:
         )
 
         try:
+            env = {k: v for k, v in os.environ.items() if not k.startswith("CLAUDE")}
             result = subprocess.run(
                 [claude_cmd, "-p", prompt],
                 capture_output=True,
                 text=True,
                 timeout=120,
                 cwd=str(ws),
+                env=env,
             )
             response_text = result.stdout.strip() if result.stdout else ""
             if not response_text and result.stderr:
