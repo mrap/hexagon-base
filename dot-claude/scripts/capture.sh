@@ -50,6 +50,10 @@ if [ -z "${TEXT// /}" ]; then
 fi
 
 # Generate filename and timestamp
+# Use configured timezone from .claude/timezone (if set)
+if [ -z "${TZ:-}" ] && [ -f "$AGENT_DIR/.claude/timezone" ]; then
+  export TZ="$(cat "$AGENT_DIR/.claude/timezone" | tr -d '[:space:]')"
+fi
 TIMESTAMP="$(date '+%Y-%m-%dT%H:%M:%S')"
 FILENAME="$(date '+%Y-%m-%d_%H-%M-%S').md"
 OUTFILE="$CAPTURES_DIR/$FILENAME"

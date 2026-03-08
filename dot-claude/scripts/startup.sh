@@ -38,6 +38,10 @@ FAILURES=0
 SESSION_ID=""
 IS_SOLO=true
 PRIVACY_MODE=false
+# Use configured timezone from .claude/timezone (if set)
+if [ -z "${TZ:-}" ] && [ -f "$AGENT_DIR/.claude/timezone" ]; then
+  export TZ="$(cat "$AGENT_DIR/.claude/timezone" | tr -d '[:space:]')"
+fi
 TODAY=$(date +%Y-%m-%d)
 
 # Privacy mode check

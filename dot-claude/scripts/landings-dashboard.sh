@@ -19,6 +19,11 @@ if [ -z "${AGENT_DIR:-}" ]; then
   AGENT_DIR="${AGENT_DIR:-$HOME/hexagon}"
 fi
 
+# Use configured timezone from .claude/timezone (if set)
+if [ -z "${TZ:-}" ] && [ -f "$AGENT_DIR/.claude/timezone" ]; then
+  export TZ="$(cat "$AGENT_DIR/.claude/timezone" | tr -d '[:space:]')"
+fi
+
 TODAY=$(date +%Y-%m-%d)
 FILE="$AGENT_DIR/landings/$TODAY.md"
 MAX=50
@@ -55,6 +60,15 @@ SHOW_WEEKLY="${SHOW_WEEKLY:-false}"
 
 # Header
 echo -e "${BOLD}${MAUVE}═══ LANDINGS $(date +%a\ %b\ %d) ═══${RESET}"
+
+# Current mission
+MISSION_FILE="$AGENT_DIR/.claude/mission"
+if [[ -f "$MISSION_FILE" ]]; then
+  MISSION=$(head -1 "$MISSION_FILE")
+  if [[ -n "$MISSION" ]]; then
+    echo -e "${BOLD}${CYAN}► ${MISSION}${RESET}"
+  fi
+fi
 echo ""
 
 # --- Weekly Targets ---
