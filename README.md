@@ -42,7 +42,19 @@ Open a new terminal, then:
 hex
 ```
 
-This opens a tmux workspace with Claude Code on the left and a live landings dashboard on the right. Your agent starts up and asks 3 quick questions, then you're off.
+This opens a tmux workspace with Claude Code on the left, a live landings dashboard on the top-right, and a quick capture pane on the bottom-right. Type a thought into the capture pane and hit enter to save it instantly. Your agent starts up and asks 3 quick questions, then you're off.
+
+```
+┌──────────────────────────┬────────────────────┐
+│                          │                    │
+│     Claude Code          │  Landings Dash     │
+│     (main pane)          │  (auto-refresh)    │
+│                          │                    │
+│                          ├────────────────────┤
+│                          │ 💡 Quick Capture   │
+│                          │ > _                │
+└──────────────────────────┴────────────────────┘
+```
 
 > **No tmux?** Just `cd ~/<agent-name> && claude` works too.
 
@@ -78,7 +90,7 @@ The installer creates this workspace:
 │   ├── changelog.md       ← Improvements that have been implemented.
 │   └── metrics.md         ← Impact tracking.
 │
-├── raw/                   ← Unprocessed input (transcripts, messages, docs).
+├── raw/                   ← Unprocessed input (transcripts, messages, docs, captures).
 ├── landings/              ← Daily outcome targets.
 └── .claude/               ← Scripts, skills, commands, hooks.
 ```

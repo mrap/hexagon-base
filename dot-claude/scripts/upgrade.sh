@@ -296,5 +296,17 @@ if $TEMPLATE_CHANGED; then
 fi
 
 echo ""
+
+# Notify about capture pane if it was newly added
+if [ -f "$CLAUDE_DIR/scripts/capture-pane.sh" ]; then
+  CAPTURE_EXISTED=false
+  if [ -d "${BACKUP_DIR:-}" ] && [ -f "${BACKUP_DIR:-}/scripts/capture-pane.sh" ]; then
+    CAPTURE_EXISTED=true
+  fi
+  if ! $CAPTURE_EXISTED; then
+    echo -e "  ${GREEN}New: Quick capture pane in workspace. Restart with \`hex\` to see it.${RESET}"
+  fi
+fi
+
 echo -e "  ${GREEN}Upgrade complete.${RESET}"
 echo ""
