@@ -210,6 +210,21 @@ if [ "$CHANGED" -gt 0 ]; then
   info "Backed up $CHANGED file(s) to ${BACKUP_DIR##*/}"
 fi
 
+# Track whether Web UI is newly added
+UI_IS_NEW=false
+if [ -d "$SOURCE_DIR/dot-claude/ui" ] && [ ! -d "$CLAUDE_DIR/ui" ]; then
+  UI_IS_NEW=true
+fi
+
+# Protect user-customized style.css: back it up before rsync, restore after
+USER_STYLE=""
+if [ -f "$CLAUDE_DIR/ui/static/style.css" ] && [ -f "$SOURCE_DIR/dot-claude/ui/static/style.css" ]; then
+  if ! diff -q "$CLAUDE_DIR/ui/static/style.css" "$SOURCE_DIR/dot-claude/ui/static/style.css" > /dev/null 2>&1; then
+    USER_STYLE="$(mktemp)"
+    cp "$CLAUDE_DIR/ui/static/style.css" "$USER_STYLE"
+  fi
+fi
+
 # Copy files
 rsync -a \
   --exclude='memory.db' \
@@ -219,6 +234,13 @@ rsync -a \
   --exclude='__pycache__' \
   --exclude='.upgrade-*' \
   "$SOURCE_DIR/dot-claude/" "$CLAUDE_DIR/"
+
+# Restore user-customized style.css if it was different from source
+if [ -n "$USER_STYLE" ] && [ -f "$USER_STYLE" ]; then
+  cp "$USER_STYLE" "$CLAUDE_DIR/ui/static/style.css"
+  rm -f "$USER_STYLE"
+  info "Preserved your customized ui/static/style.css"
+fi
 
 # Make scripts executable
 find "$CLAUDE_DIR" -name "*.sh" -type f -exec chmod +x {} +
@@ -266,6 +288,20 @@ if [ -n "$RC_FILE" ]; then
     pass "Added hex alias to $RC_FILE"
   fi
 
+  # --- hex-ui alias ---
+  UI_ALIAS_LINE="alias hex-ui='bash $AGENT_DIR/.claude/scripts/ui.sh'"
+  if grep -qF "alias hex-ui=" "$RC_FILE" 2>/dev/null; then
+    if ! grep -qF "$UI_ALIAS_LINE" "$RC_FILE" 2>/dev/null; then
+      sed -e "s|^alias hex-ui=.*|$UI_ALIAS_LINE|" "$RC_FILE" > "$RC_FILE.tmp" && mv "$RC_FILE.tmp" "$RC_FILE"
+      pass "Updated hex-ui alias in $RC_FILE"
+    else
+      pass "hex-ui alias already up to date in $RC_FILE"
+    fi
+  else
+    echo "$UI_ALIAS_LINE" >> "$RC_FILE"
+    pass "Added hex-ui alias to $RC_FILE"
+  fi
+
   # --- claude() skip-permissions function ---
   if grep -qF 'dangerously-skip-permissions' "$RC_FILE" 2>/dev/null; then
     pass "claude skip-permissions already configured in $RC_FILE"
@@ -296,6 +332,11 @@ if $TEMPLATE_CHANGED; then
 fi
 
 echo ""
+
+# Notify about Web UI if it was newly added
+if $UI_IS_NEW && [ -d "$CLAUDE_DIR/ui" ]; then
+  echo -e "  ${GREEN}New: Web UI. Run \`hex-ui\` to launch.${RESET}"
+fi
 
 # Notify about capture pane if it was newly added
 if [ -f "$CLAUDE_DIR/scripts/capture-pane.sh" ]; then
