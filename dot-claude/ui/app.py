@@ -681,6 +681,17 @@ def search_memory(ws: Path, query: str, limit: int = 20) -> list[dict]:
     return results
 
 
+# ─── Formatting helpers ──────────────────────────────────────────────────────
+
+
+def _format_inline(s: str) -> str:
+    """Apply inline formatting (backticks, bold, newlines) to text outside <pre> blocks."""
+    s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
+    s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
+    s = s.replace("\n", "<br>")
+    return s
+
+
 # ─── App factory ─────────────────────────────────────────────────────────────
 
 
@@ -1204,14 +1215,20 @@ def create_app(workspace: Path | None = None) -> FastAPI:
 
         # Escape HTML in response, then convert markdown-like formatting
         safe_response = html_mod.escape(response_text)
-        # Convert backtick code blocks to <code>
-        safe_response = re.sub(r"`([^`]+)`", r"<code>\1</code>", safe_response)
-        # Convert **bold** to <strong>
+        # Convert triple-backtick fenced code blocks to <pre><code>
+        # (must run BEFORE single-backtick conversion)
         safe_response = re.sub(
-            r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", safe_response
+            r"```\w*\n(.*?)```",
+            lambda m: "<pre><code>" + m.group(1) + "</code></pre>",
+            safe_response,
+            flags=re.DOTALL,
         )
-        # Convert newlines to <br>
-        safe_response = safe_response.replace("\n", "<br>")
+        # Apply inline formatting only OUTSIDE <pre> blocks
+        parts = re.split(r"(<pre><code>.*?</code></pre>)", safe_response, flags=re.DOTALL)
+        safe_response = "".join(
+            part if part.startswith("<pre>") else _format_inline(part)
+            for part in parts
+        )
 
         return templates.TemplateResponse(
             "partials/chat_response.html",

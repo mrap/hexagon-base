@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head><title>formatResponse Tests</title></head>
+<body>
+<h1>formatResponse JS Tests</h1>
+<pre id="output"></pre>
+<script>
+// ─── Functions under test (copied from chat.html) ──────────────────
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function formatResponse(text) {
+  var s = escapeHtml(text);
+  // Triple-backtick fenced code blocks → <pre><code> (BEFORE inline formatting)
+  s = s.replace(/```\w*\n([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+  // Apply inline formatting only OUTSIDE <pre> blocks
+  var parts = s.split(/(<pre><code>[\s\S]*?<\/code><\/pre>)/g);
+  s = parts.map(function(part) {
+    if (part.indexOf('<pre>') === 0) return part;
+    part = part.replace(/`([^`]+)`/g, '<code>$1</code>');
+    part = part.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    part = part.replace(/\n/g, '<br>');
+    return part;
+  }).join('');
+  return s;
+}
+
+// ─── Test harness ───────────────────────────────────────────────────
+let passed = 0, failed = 0, results = [];
+
+function assert(name, actual, expected) {
+  if (actual === expected) {
+    passed++;
+    results.push('PASS: ' + name);
+  } else {
+    failed++;
+    results.push('FAIL: ' + name + '\n  expected: ' + JSON.stringify(expected) + '\n  actual:   ' + JSON.stringify(actual));
+  }
+}
+
+// ─── Tests ──────────────────────────────────────────────────────────
+
+// 1. HTML escaping
+assert('escapes HTML entities',
+  formatResponse('<script>alert("xss")</script>'),
+  '&lt;script&gt;alert("xss")&lt;/script&gt;'
+);
+
+// 2. Single backticks → <code>
+assert('backticks to code',
+  formatResponse('Use `foo()` here'),
+  'Use <code>foo()</code> here'
+);
+
+// 3. Bold **text** → <strong>
+assert('double asterisks to strong',
+  formatResponse('This is **important** info'),
+  'This is <strong>important</strong> info'
+);
+
+// 4. Newlines → <br>
+assert('newlines to br',
+  formatResponse('line1\nline2\nline3'),
+  'line1<br>line2<br>line3'
+);
+
+// 5. Combined: all formatting in one string
+assert('combined formatting',
+  formatResponse('Run `npm install` for **fast** setup\nDone.'),
+  'Run <code>npm install</code> for <strong>fast</strong> setup<br>Done.'
+);
+
+// 6. No formatting needed — plain text passes through
+assert('plain text unchanged',
+  formatResponse('Hello world'),
+  'Hello world'
+);
+
+// 7. HTML inside backticks is escaped
+assert('HTML in backticks is escaped',
+  formatResponse('Use `<div>` tag'),
+  'Use <code>&lt;div&gt;</code> tag'
+);
+
+// 8. Ampersands are escaped
+assert('ampersands escaped',
+  formatResponse('a & b'),
+  'a &amp; b'
+);
+
+// 9. Multiple code spans
+assert('multiple code spans',
+  formatResponse('`a` and `b`'),
+  '<code>a</code> and <code>b</code>'
+);
+
+// 10. Empty string
+assert('empty string',
+  formatResponse(''),
+  ''
+);
+
+// 11. Triple-backtick fenced code block
+(function() {
+  var result = formatResponse("Here:\n```\nprint('hi')\n```\nDone.");
+  assert('fenced code block contains pre',
+    result.indexOf('<pre><code>') >= 0, true);
+  assert('fenced code block no raw backticks',
+    result.indexOf('```') === -1, true);
+})();
+
+// 12. Fenced block with language tag
+(function() {
+  var result = formatResponse("Code:\n```python\nx = 1\n```");
+  assert('fenced block with language has pre',
+    result.indexOf('<pre><code>') >= 0, true);
+  assert('language tag stripped',
+    result.indexOf('python') === -1, true);
+})();
+
+// 13. Newlines inside <pre> are NOT converted to <br>
+(function() {
+  var result = formatResponse("```\nline1\nline2\n```");
+  var preContent = result.split('<pre><code>')[1].split('</code></pre>')[0];
+  assert('newlines preserved inside pre',
+    preContent.indexOf('<br>') === -1, true);
+  assert('newlines still present inside pre',
+    preContent.indexOf('\n') >= 0, true);
+})();
+
+// 14. Newlines outside <pre> still become <br>
+(function() {
+  var result = formatResponse("before\n```\ncode\n```\nafter");
+  assert('br before pre block',
+    result.indexOf('before<br>') >= 0, true);
+  assert('br after pre block',
+    result.indexOf('<br>after') >= 0, true);
+})();
+
+// ─── Report ─────────────────────────────────────────────────────────
+results.push('');
+results.push(passed + ' passed, ' + failed + ' failed');
+document.getElementById('output').textContent = results.join('\n');
+
+// Exit code for headless testing
+if (typeof process !== 'undefined' && process.exit) {
+  process.exit(failed > 0 ? 1 : 0);
+}
+</script>
+</body>
+</html>
