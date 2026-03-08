@@ -101,7 +101,7 @@ TODAY=$(date +%Y-%m-%d)
 echo "[1/7] Creating folder structure..."
 mkdir -p "$AGENT_DIR"/.sessions
 mkdir -p "$AGENT_DIR"/me/decisions
-mkdir -p "$AGENT_DIR"/raw/{transcripts,messages,calendar,docs}
+mkdir -p "$AGENT_DIR"/raw/{transcripts,messages,calendar,docs,captures}
 mkdir -p "$AGENT_DIR"/people
 mkdir -p "$AGENT_DIR"/projects
 mkdir -p "$AGENT_DIR"/evolution
