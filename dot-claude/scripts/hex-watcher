@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# hex-watcher — manage the BOI queue watcher daemon
+# Usage: hex-watcher {start|stop|status}
+set -uo pipefail
+
+PID_FILE="${HOME}/.config/hex/watcher.pid"
+LOG_FILE="${HOME}/.config/hex/watcher.log"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WATCHER_PY="${SCRIPT_DIR}/hex-watcher.py"
+
+# Check if the watcher process is actually alive
+is_running() {
+    [[ -f "$PID_FILE" ]] || return 1
+    local pid
+    pid=$(<"$PID_FILE")
+    # Verify PID is a number and process exists
+    [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null
+}
+
+cmd_start() {
+    if is_running; then
+        local pid=$(<"$PID_FILE")
+        echo "hex-watcher already running (PID $pid)"
+        return 0
+    fi
+
+    # Clean stale PID file
+    rm -f "$PID_FILE"
+
+    # Ensure log directory exists
+    mkdir -p "$(dirname "$LOG_FILE")"
+
+    # Start detached from any terminal/tmux — survives session restarts
+    nohup python3 "$WATCHER_PY" >> "$LOG_FILE" 2>&1 &
+    disown
+
+    # Wait briefly for PID file to appear
+    local tries=0
+    while [[ ! -f "$PID_FILE" ]] && [[ $tries -lt 10 ]]; do
+        sleep 0.2
+        tries=$((tries + 1))
+    done
+
+    if is_running; then
+        local pid=$(<"$PID_FILE")
+        echo "hex-watcher started (PID $pid)"
+    else
+        echo "hex-watcher failed to start — check $LOG_FILE" >&2
+        return 1
+    fi
+}
+
+cmd_stop() {
+    if ! is_running; then
+        echo "hex-watcher is not running"
+        rm -f "$PID_FILE"
+        return 0
+    fi
+
+    local pid=$(<"$PID_FILE")
+    echo "Stopping hex-watcher (PID $pid)..."
+    kill "$pid" 2>/dev/null
+
+    # Wait for clean shutdown
+    local tries=0
+    while kill -0 "$pid" 2>/dev/null && [[ $tries -lt 20 ]]; do
+        sleep 0.2
+        tries=$((tries + 1))
+    done
+
+    if kill -0 "$pid" 2>/dev/null; then
+        echo "Force killing hex-watcher..."
+        kill -9 "$pid" 2>/dev/null
+        rm -f "$PID_FILE"
+    fi
+    echo "hex-watcher stopped"
+}
+
+cmd_status() {
+    if is_running; then
+        local pid=$(<"$PID_FILE")
+        echo "hex-watcher is running (PID $pid)"
+    else
+        echo "hex-watcher is not running"
+        [[ -f "$PID_FILE" ]] && rm -f "$PID_FILE"
+    fi
+}
+
+case "${1:-}" in
+    start)  cmd_start ;;
+    stop)   cmd_stop ;;
+    status) cmd_status ;;
+    *)
+        echo "Usage: hex-watcher {start|stop|status}" >&2
+        exit 1
+        ;;
+esac

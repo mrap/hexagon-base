@@ -28,8 +28,14 @@ fi
 
 DASHBOARD="$AGENT_DIR/.claude/scripts/landings-dashboard.sh"
 CAPTURE_PANE="$AGENT_DIR/.claude/scripts/capture-pane.sh"
+HEX_WATCHER="$AGENT_DIR/.claude/scripts/hex-watcher"
 SESSION_NAME="hex"
 DASH_WIDTH="10%"
+
+# ─── Start BOI watcher (idempotent, survives tmux restarts) ──────────────
+if [ -x "$HEX_WATCHER" ]; then
+  "$HEX_WATCHER" start
+fi
 
 # Helper: get the first window index (respects base-index setting)
 first_win() { tmux list-windows -t "$SESSION_NAME" -F '#{window_index}' | head -1; }
