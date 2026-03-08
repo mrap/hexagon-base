@@ -29,7 +29,10 @@ fi
 DASHBOARD="$AGENT_DIR/.claude/scripts/landings-dashboard.sh"
 CAPTURE_PANE="$AGENT_DIR/.claude/scripts/capture-pane.sh"
 SESSION_NAME="hex"
-DASH_WIDTH="20%"
+DASH_WIDTH="10%"
+
+# Helper: get the first window index (respects base-index setting)
+first_win() { tmux list-windows -t "$SESSION_NAME" -F '#{window_index}' | head -1; }
 
 # ─── Already in the hex session? ────────────────────────────────────────────
 if [ -n "${TMUX:-}" ]; then
@@ -41,9 +44,12 @@ if [ -n "${TMUX:-}" ]; then
       # Split and launch dashboard
       tmux split-window -h -l "$DASH_WIDTH" "AGENT_DIR='$AGENT_DIR' bash '$DASHBOARD' --watch"
       # Split dashboard pane to create capture pane below it
-      tmux split-window -t "$SESSION_NAME:0.1" -v -l 5 -c "$AGENT_DIR" \
+      W=$(first_win)
+      DASH_PANE=$(tmux list-panes -t "$SESSION_NAME:$W" -F '#{pane_index}' | tail -1)
+      tmux split-window -t "$SESSION_NAME:$W.$DASH_PANE" -v -l 5 -c "$AGENT_DIR" \
         "bash '$CAPTURE_PANE'"
-      tmux select-pane -t "$SESSION_NAME:0.0"
+      MAIN_PANE=$(tmux list-panes -t "$SESSION_NAME:$W" -F '#{pane_index}' | head -1)
+      tmux select-pane -t "$SESSION_NAME:$W.$MAIN_PANE"
     fi
     # If claude isn't running in the main pane, start it
     exit 0
@@ -71,11 +77,14 @@ tmux split-window -h -t "$SESSION_NAME" -l "$DASH_WIDTH" -c "$AGENT_DIR" \
   "AGENT_DIR='$AGENT_DIR' bash '$DASHBOARD' --watch"
 
 # Split dashboard pane to create capture pane below it
-tmux split-window -t "$SESSION_NAME:0.1" -v -l 5 -c "$AGENT_DIR" \
+W=$(first_win)
+DASH_PANE=$(tmux list-panes -t "$SESSION_NAME:$W" -F '#{pane_index}' | tail -1)
+tmux split-window -t "$SESSION_NAME:$W.$DASH_PANE" -v -l 5 -c "$AGENT_DIR" \
   "bash '$CAPTURE_PANE'"
 
 # Focus the main (left) pane
-tmux select-pane -t "$SESSION_NAME:0.0"
+MAIN_PANE=$(tmux list-panes -t "$SESSION_NAME:$W" -F '#{pane_index}' | head -1)
+tmux select-pane -t "$SESSION_NAME:$W.$MAIN_PANE"
 
 # Attach
 if [ -n "${TMUX:-}" ]; then
