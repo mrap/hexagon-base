@@ -14,12 +14,7 @@
       </div>
     </div>
 
-    <form class="chat-input-form"
-          hx-post="/api/chat"
-          hx-target="#chat-messages"
-          hx-swap="beforeend"
-          hx-on::before-request="this.querySelector('.chat-input').value && appendUserMessage(this.querySelector('.chat-input').value)"
-          hx-on::after-request="this.querySelector('.chat-input').value = ''; this.querySelector('.chat-input').focus(); scrollChat()">
+    <form class="chat-input-form" id="chat-form">
       <div class="chat-input-wrapper">
         <textarea class="chat-input"
                   name="message"
@@ -36,20 +31,10 @@
 </div>
 
 <script>
-function appendUserMessage(text) {
-  const container = document.getElementById('chat-messages');
+function escapeHtml(text) {
   const div = document.createElement('div');
-  div.className = 'chat-message chat-message-user';
-  div.innerHTML = '<div class="chat-bubble">' + escapeHtml(text) + '</div>';
-  container.appendChild(div);
-
-  // Add typing indicator
-  const typing = document.createElement('div');
-  typing.className = 'chat-message chat-message-agent';
-  typing.id = 'chat-typing';
-  typing.innerHTML = '<div class="chat-avatar">&#x1F916;</div><div class="chat-bubble chat-typing"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>';
-  container.appendChild(typing);
-  scrollChat();
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 function scrollChat() {
@@ -59,21 +44,147 @@ function scrollChat() {
   }, 50);
 }
 
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+function formatResponse(text) {
+  // Same formatting as backend: escape, backticks, bold, newlines
+  let s = escapeHtml(text);
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\n/g, '<br>');
+  return s;
 }
 
-// Remove typing indicator when response arrives
-document.body.addEventListener('htmx:afterSwap', function(e) {
+function appendUserMessage(text) {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-message chat-message-user';
+  div.innerHTML = '<div class="chat-bubble">' + escapeHtml(text) + '</div>';
+  container.appendChild(div);
+  scrollChat();
+}
+
+function showTypingIndicator() {
+  const container = document.getElementById('chat-messages');
+  const typing = document.createElement('div');
+  typing.className = 'chat-message chat-message-agent';
+  typing.id = 'chat-typing';
+  typing.innerHTML = '<div class="chat-avatar">&#x1F916;</div><div class="chat-bubble chat-typing"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>';
+  container.appendChild(typing);
+  scrollChat();
+}
+
+function removeTypingIndicator() {
   const typing = document.getElementById('chat-typing');
   if (typing) typing.remove();
-  scrollChat();
-});
+}
 
-// Auto-resize textarea
+async function handleChatSubmit(e) {
+  e.preventDefault();
+  const form = e.target;
+  const input = form.querySelector('.chat-input');
+  const message = input.value.trim();
+  if (!message) return;
+
+  // Show user message + typing indicator
+  appendUserMessage(message);
+  input.value = '';
+  input.style.height = 'auto';
+  showTypingIndicator();
+
+  // Create agent bubble (hidden until first chunk)
+  const container = document.getElementById('chat-messages');
+  const agentDiv = document.createElement('div');
+  agentDiv.className = 'chat-message chat-message-agent';
+  agentDiv.style.display = 'none';
+  agentDiv.innerHTML = '<div class="chat-avatar">&#x1F916;</div><div class="chat-bubble"></div>';
+  container.appendChild(agentDiv);
+  const bubble = agentDiv.querySelector('.chat-bubble');
+
+  let fullText = '';
+
+  try {
+    const formData = new FormData();
+    formData.append('message', message);
+    const response = await fetch('/api/chat/stream', { method: 'POST', body: formData });
+
+    if (!response.ok) {
+      removeTypingIndicator();
+      bubble.innerHTML = formatResponse('Error: Failed to connect to agent.');
+      agentDiv.style.display = '';
+      scrollChat();
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      // Keep the last potentially incomplete line in buffer
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const jsonStr = line.slice(6);
+        let parsed;
+        try { parsed = JSON.parse(jsonStr); } catch { continue; }
+
+        if (parsed.t) {
+          // First chunk: swap typing indicator for agent bubble
+          if (!fullText) {
+            removeTypingIndicator();
+            agentDiv.style.display = '';
+          }
+          fullText += parsed.t;
+          bubble.textContent = fullText;
+          scrollChat();
+        } else if (parsed.error) {
+          removeTypingIndicator();
+          fullText = parsed.error;
+          bubble.innerHTML = formatResponse(fullText);
+          agentDiv.style.display = '';
+          scrollChat();
+        } else if (parsed.done) {
+          // Stream complete — apply formatting
+          removeTypingIndicator();
+          if (fullText) {
+            bubble.innerHTML = formatResponse(fullText);
+          } else {
+            bubble.innerHTML = formatResponse('No response received.');
+          }
+          agentDiv.style.display = '';
+          scrollChat();
+        }
+      }
+    }
+
+    // Handle case where stream ends without a done event
+    if (agentDiv.style.display === 'none') {
+      removeTypingIndicator();
+      bubble.innerHTML = formatResponse(fullText || 'No response received.');
+      agentDiv.style.display = '';
+      scrollChat();
+    }
+  } catch (err) {
+    removeTypingIndicator();
+    bubble.innerHTML = formatResponse('Error: ' + err.message);
+    agentDiv.style.display = '';
+    scrollChat();
+  }
+
+  input.focus();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+  // Chat form submit handler (streaming)
+  const form = document.getElementById('chat-form');
+  if (form) form.addEventListener('submit', handleChatSubmit);
+
+  // Auto-resize textarea
   const textarea = document.querySelector('.chat-input');
   if (textarea) {
     textarea.addEventListener('input', function() {

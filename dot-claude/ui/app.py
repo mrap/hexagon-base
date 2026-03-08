@@ -1030,6 +1030,126 @@ def create_app(workspace: Path | None = None) -> FastAPI:
 
     # ─── Chat API ─────────────────────────────────────────────────────
 
+    @app.post("/api/chat/stream")
+    async def api_chat_stream(request: Request, message: str = Form(...)):
+        """Stream a chat response via SSE using claude CLI streaming output."""
+        message = message.strip()
+        if not message:
+            async def empty_gen():
+                yield 'data: {"error": "Please type a message."}\n\n'
+            return StreamingResponse(empty_gen(), media_type="text/event-stream")
+
+        claude_cmd = shutil.which("claude") or shutil.which("cgo")
+        if not claude_cmd:
+            async def no_cli_gen():
+                yield 'data: {"error": "Claude CLI not found. Install Claude Code to enable chat."}\n\n'
+            return StreamingResponse(no_cli_gen(), media_type="text/event-stream")
+
+        prompt = (
+            f"You are a personal AI agent for a hexagon workspace at {ws}. "
+            f"The workspace contains projects, people, landings, captures, and todos. "
+            f"Be concise, direct, and helpful. "
+            f"User says: {message}"
+        )
+
+        env = {k: v for k, v in os.environ.items() if not k.startswith("CLAUDE")}
+
+        async def stream_generator():
+            proc = None
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    claude_cmd, "-p",
+                    "--output-format", "stream-json",
+                    "--include-partial-messages",
+                    prompt,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=str(ws),
+                    env=env,
+                )
+
+                deadline = asyncio.get_event_loop().time() + 120  # 120s timeout
+
+                while True:
+                    # Check client disconnect
+                    if await request.is_disconnected():
+                        proc.kill()
+                        break
+
+                    # Check timeout
+                    if asyncio.get_event_loop().time() > deadline:
+                        proc.kill()
+                        yield 'data: {"error": "Request timed out."}\n\n'
+                        break
+
+                    try:
+                        line_bytes = await asyncio.wait_for(
+                            proc.stdout.readline(), timeout=0.5
+                        )
+                    except asyncio.TimeoutError:
+                        # No data yet — check if process exited
+                        if proc.returncode is not None:
+                            break
+                        continue
+
+                    if not line_bytes:
+                        # EOF — process finished
+                        break
+
+                    line = line_bytes.decode("utf-8", errors="replace").strip()
+                    if not line:
+                        continue
+
+                    try:
+                        data = json.loads(line)
+                        # NDJSON format: {"type": "stream_event", "event": {"type": "content_block_delta", ...}}
+                        event = None
+                        if data.get("type") == "stream_event":
+                            event = data.get("event", {})
+                        elif data.get("type") == "content_block_delta":
+                            # Fallback: handle unwrapped format
+                            event = data
+
+                        if event and event.get("type") == "content_block_delta":
+                            delta = event.get("delta", {})
+                            if delta.get("type") == "text_delta":
+                                text = delta.get("text", "")
+                                if text:
+                                    chunk = json.dumps({"t": text})
+                                    yield f"data: {chunk}\n\n"
+                    except json.JSONDecodeError:
+                        continue
+
+                # Wait for process to finish and check for errors
+                if proc.returncode is None:
+                    await proc.wait()
+                if proc.returncode and proc.returncode != 0:
+                    stderr_out = await proc.stderr.read()
+                    if stderr_out:
+                        err_text = stderr_out.decode("utf-8", errors="replace").strip()[:200]
+                        yield f'data: {json.dumps({"error": err_text})}\n\n'
+
+                yield 'data: {"done": true}\n\n'
+
+            except FileNotFoundError:
+                yield 'data: {"error": "Claude CLI not found."}\n\n'
+            except Exception as exc:
+                yield f'data: {json.dumps({"error": str(exc)[:200]})}\n\n'
+            finally:
+                if proc and proc.returncode is None:
+                    proc.kill()
+                    await proc.wait()
+
+        return StreamingResponse(
+            stream_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
     @app.post("/api/chat")
     async def api_chat(request: Request, message: str = Form(...)):
         """Send a message to the agent and return the response."""
