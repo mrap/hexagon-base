@@ -1,0 +1,10 @@
+{% if items %}
+{% for item in items %}
+<div class="todo-item">
+  <span class="todo-bullet"></span>
+  <span class="todo-label">{{ item }}</span>
+</div>
+{% endfor %}
+{% else %}
+<p class="placeholder-text">No todos found.</p>
+{% endif %}

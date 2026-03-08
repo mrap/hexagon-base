@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Memory — Hex{% endblock %}
+{% block content %}
+<div class="memory-page">
+  <h1 class="page-title">Search memory</h1>
+  <div class="search-box">
+    <span class="search-icon">&#x1F50D;</span>
+    <input type="text"
+           id="memory-query"
+           name="q"
+           class="search-input"
+           placeholder="search query here..."
+           autofocus
+           autocomplete="off"
+           hx-get="/api/memory/search"
+           hx-trigger="keyup changed delay:300ms"
+           hx-target="#memory-results"
+           hx-swap="innerHTML"
+           hx-indicator="#search-spinner">
+    <span id="search-spinner" class="htmx-indicator search-spinner">&#x23F3;</span>
+  </div>
+  <div id="memory-results">
+    <p class="placeholder-text">Type to search across projects, people, and notes.</p>
+  </div>
+</div>
+{% endblock %}

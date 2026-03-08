@@ -1,0 +1,18 @@
+{% if not results and query %}
+<p class="placeholder-text">No results for "{{ query }}"</p>
+{% elif results %}
+<div class="search-results-header">Results for "{{ query }}"</div>
+{% for r in results %}
+<div class="search-result">
+  <div class="search-result-source">
+    <span class="search-result-icon">{{ r.icon|safe }}</span>
+    <span class="search-result-file">{{ r.file }}</span>
+    {% if r.heading %}
+    <span class="search-result-sep">&rsaquo;</span>
+    <span class="search-result-heading">{{ r.heading }}</span>
+    {% endif %}
+  </div>
+  <div class="search-result-snippet">{{ r.snippet_html|safe }}</div>
+</div>
+{% endfor %}
+{% endif %}

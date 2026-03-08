@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Hex{% endblock %}
+{% block content %}
+<h1 class="page-title">Dashboard</h1>
+
+<div class="card">
+  <div class="card-title">Today's Landings</div>
+  <div id="landings-panel"
+       hx-get="/api/landings"
+       hx-trigger="load, every 5s"
+       hx-swap="innerHTML">
+    <p class="placeholder-text">Loading...</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">Recent Captures</div>
+  <div id="captures-panel"
+       hx-get="/api/captures"
+       hx-trigger="load, every 10s"
+       hx-swap="innerHTML">
+    <p class="placeholder-text">Loading...</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">Priority</div>
+  <div id="todos-panel"
+       hx-get="/api/todos"
+       hx-trigger="load, every 10s"
+       hx-swap="innerHTML">
+    <p class="placeholder-text">Loading...</p>
+  </div>
+</div>
+{% endblock %}

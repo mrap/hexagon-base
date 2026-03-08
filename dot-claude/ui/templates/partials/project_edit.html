@@ -1,0 +1,17 @@
+<div class="detail-section">
+  <div class="detail-header">
+    <span class="detail-label">Edit Context</span>
+  </div>
+  <form hx-post="/api/projects/{{ project.name }}/save"
+        hx-target="#project-{{ project.name }}-body"
+        hx-swap="innerHTML">
+    <textarea name="content" class="edit-textarea">{{ project.context }}</textarea>
+    <div class="edit-actions">
+      <button type="submit" class="edit-save-btn">Save</button>
+      <button type="button" class="edit-cancel-btn"
+              hx-get="/api/projects/{{ project.name }}"
+              hx-target="#project-{{ project.name }}-body"
+              hx-swap="innerHTML">Cancel</button>
+    </div>
+  </form>
+</div>

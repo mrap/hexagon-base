@@ -1,0 +1,17 @@
+<div class="detail-section">
+  <div class="detail-header">
+    <span class="detail-label">Edit Profile</span>
+  </div>
+  <form hx-post="/api/people/{{ person.name }}/save"
+        hx-target="#person-{{ person.name }}-body"
+        hx-swap="innerHTML">
+    <textarea name="content" class="edit-textarea">{{ person.profile }}</textarea>
+    <div class="edit-actions">
+      <button type="submit" class="edit-save-btn">Save</button>
+      <button type="button" class="edit-cancel-btn"
+              hx-get="/api/people/{{ person.name }}"
+              hx-target="#person-{{ person.name }}-body"
+              hx-swap="innerHTML">Cancel</button>
+    </div>
+  </form>
+</div>

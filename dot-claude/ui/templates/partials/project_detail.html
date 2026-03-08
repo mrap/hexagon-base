@@ -1,0 +1,32 @@
+<div class="detail-section">
+  <div class="detail-header">
+    <span class="detail-label">Context</span>
+    <button class="edit-btn"
+            hx-get="/api/projects/{{ project.name }}/edit"
+            hx-target="#project-{{ project.name }}-body"
+            hx-swap="innerHTML">Edit</button>
+  </div>
+  <div class="detail-content markdown-content">{{ project.context | e }}</div>
+</div>
+
+{% if project.decisions %}
+<div class="detail-section">
+  <div class="detail-label">Decisions</div>
+  <ul class="detail-list">
+    {% for d in project.decisions %}
+    <li>{{ d.title }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if project.meetings %}
+<div class="detail-section">
+  <div class="detail-label">Recent Meetings</div>
+  <ul class="detail-list">
+    {% for m in project.meetings %}
+    <li>{{ m.title }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}

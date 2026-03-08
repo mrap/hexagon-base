@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Chat — Hex{% endblock %}
+{% block content %}
+<div class="chat-page">
+  <h1 class="page-title">Chat with your agent</h1>
+
+  <div class="chat-container">
+    <div id="chat-messages" class="chat-messages">
+      <div class="chat-message chat-message-agent">
+        <div class="chat-avatar">&#x1F916;</div>
+        <div class="chat-bubble">
+          Ready when you are. Ask me anything about your workspace.
+        </div>
+      </div>
+    </div>
+
+    <form class="chat-input-form"
+          hx-post="/api/chat"
+          hx-target="#chat-messages"
+          hx-swap="beforeend"
+          hx-on::before-request="this.querySelector('.chat-input').value && appendUserMessage(this.querySelector('.chat-input').value)"
+          hx-on::after-request="this.querySelector('.chat-input').value = ''; this.querySelector('.chat-input').focus(); scrollChat()">
+      <div class="chat-input-wrapper">
+        <textarea class="chat-input"
+                  name="message"
+                  placeholder="Type a message..."
+                  rows="1"
+                  autofocus
+                  onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); this.closest('form').requestSubmit()}"></textarea>
+        <button type="submit" class="chat-send-btn">
+          <span class="chat-send-icon">&#x2191;</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function appendUserMessage(text) {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-message chat-message-user';
+  div.innerHTML = '<div class="chat-bubble">' + escapeHtml(text) + '</div>';
+  container.appendChild(div);
+
+  // Add typing indicator
+  const typing = document.createElement('div');
+  typing.className = 'chat-message chat-message-agent';
+  typing.id = 'chat-typing';
+  typing.innerHTML = '<div class="chat-avatar">&#x1F916;</div><div class="chat-bubble chat-typing"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>';
+  container.appendChild(typing);
+  scrollChat();
+}
+
+function scrollChat() {
+  const container = document.getElementById('chat-messages');
+  setTimeout(function() {
+    container.scrollTop = container.scrollHeight;
+  }, 50);
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Remove typing indicator when response arrives
+document.body.addEventListener('htmx:afterSwap', function(e) {
+  const typing = document.getElementById('chat-typing');
+  if (typing) typing.remove();
+  scrollChat();
+});
+
+// Auto-resize textarea
+document.addEventListener('DOMContentLoaded', function() {
+  const textarea = document.querySelector('.chat-input');
+  if (textarea) {
+    textarea.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 160) + 'px';
+    });
+  }
+});
+</script>
+{% endblock %}

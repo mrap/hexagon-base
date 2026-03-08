@@ -1,0 +1,10 @@
+{% if captures %}
+{% for c in captures %}
+<div class="capture-item">
+  <span class="capture-time">{{ c.relative_time }}</span>
+  <span class="capture-preview">{{ c.preview }}</span>
+</div>
+{% endfor %}
+{% else %}
+<p class="placeholder-text">No captures yet.</p>
+{% endif %}

@@ -1,0 +1,10 @@
+<div class="capture-success" id="capture-success-msg">
+  Captured.
+</div>
+<script>
+// Fade out after 2 seconds
+setTimeout(function() {
+  var el = document.getElementById('capture-success-msg');
+  if (el) { el.classList.add('fade-out'); }
+}, 2000);
+</script>

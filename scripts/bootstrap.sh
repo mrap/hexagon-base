@@ -247,6 +247,7 @@ fi
 echo "[6/7] Setting up shell alias..."
 
 ALIAS_LINE="alias hex='bash $AGENT_DIR/.claude/scripts/workspace.sh'"
+UI_ALIAS_LINE="alias hex-ui='bash $AGENT_DIR/.claude/scripts/ui.sh'"
 ALIAS_ADDED=false
 
 # Detect shell rc file.
@@ -286,6 +287,12 @@ if [ -n "$RC_FILE" ]; then
     info "Added 'hex' alias to $RC_FILE"
     ALIAS_ADDED=true
   fi
+
+  # hex-ui alias
+  if ! grep -qF "alias hex-ui=" "$RC_FILE" 2>/dev/null; then
+    echo "$UI_ALIAS_LINE" >> "$RC_FILE"
+    info "Added 'hex-ui' alias to $RC_FILE"
+  fi
 else
   info "Could not detect shell. Add manually: $ALIAS_LINE"
 fi
@@ -324,7 +331,7 @@ echo ""
 echo "  Components:"
 echo "    Commands: /hex-startup, /hex-save, /hex-shutdown, /hex-upgrade, /hex-sync, /hex-create-team, /hex-connect-team, /hex-context-sync, /context-save"
 echo "    Skills:   memory (search, index, health), landings (daily + weekly)"
-echo "    Scripts:  workspace.sh (tmux launcher), landings-dashboard.sh, capture-pane.sh"
+echo "    Scripts:  workspace.sh (tmux launcher), landings-dashboard.sh, capture-pane.sh, ui.sh (web UI)"
 echo "    Hooks:    transcript backup on every prompt + session end"
 echo ""
 echo "  Next step:"

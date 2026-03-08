@@ -95,6 +95,28 @@ The installer creates this workspace:
 └── .claude/               ← Scripts, skills, commands, hooks.
 ```
 
+## Web UI
+
+Don't want to use the terminal? Run the web UI instead:
+
+```bash
+hex-ui
+```
+
+This starts a browser-based interface at `http://localhost:3141` with:
+
+- **Dashboard** — Today's landings, recent captures, open todos (auto-refreshes)
+- **Quick Capture** — Dump thoughts from any device with a browser
+- **Memory Search** — Search your agent's entire knowledge base
+- **Projects & People** — View and edit project context and people profiles
+- **Agent Chat** — Talk to Claude through the browser
+
+The UI reads and writes the same workspace files as the CLI. Changes sync instantly between browser and terminal.
+
+Works on phone, tablet, desktop. Dark mode by default.
+
+> Requires Python 3.8+ and three pip packages: `fastapi`, `uvicorn`, `jinja2`. Installed automatically on first launch.
+
 ## Architecture
 
 Hexagon Base bootstraps a self-contained workspace. Claude Code natively reads `.claude/commands/` for slash commands and `.claude/settings.json` for hooks — no plugin manifest needed.
@@ -136,6 +158,7 @@ The system literally gets smarter the more you use it.
 | `/hex-save` | Save current session. Parses transcripts, rebuilds memory index. |
 | `/hex-shutdown` | Close session cleanly. Persists unsaved context, updates learnings, deregisters session. |
 | `/hex-upgrade` | Pull latest from hexagon-base. Upgrades scripts, skills, commands, hooks. Preserves your data. |
+| `/hex-ui` | Launch the web UI. Browser-based dashboard, capture, memory search, projects, people, and chat. |
 | `/context-save` | Persist any unsaved context from the current conversation to files. |
 | `/hex-sync` | Sync with connected teams. Pull shared updates, push local updates. |
 | `/hex-create-team` | Create a new team for collaboration. |

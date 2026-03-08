@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Hex{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/htmx.min.js" onerror="
+    var s=document.createElement('script');
+    s.src='https://unpkg.com/htmx.org@2.0.4';
+    document.head.appendChild(s);
+  "></script>
+</head>
+<body>
+  <nav class="sidebar">
+    <div class="sidebar-brand">Hex</div>
+    <a href="/dashboard" class="nav-item {% if page == 'dashboard' %}active{% endif %}">
+      <span class="nav-icon">&#x1F4CA;</span><span class="nav-label"> Dashboard</span>
+    </a>
+    <a href="/capture" class="nav-item {% if page == 'capture' %}active{% endif %}">
+      <span class="nav-icon">&#x1F4A1;</span><span class="nav-label"> Capture</span>
+    </a>
+    <a href="/projects" class="nav-item {% if page == 'projects' %}active{% endif %}">
+      <span class="nav-icon">&#x1F4C1;</span><span class="nav-label"> Projects</span>
+    </a>
+    <a href="/people" class="nav-item {% if page == 'people' %}active{% endif %}">
+      <span class="nav-icon">&#x1F465;</span><span class="nav-label"> People</span>
+    </a>
+    <a href="/memory" class="nav-item {% if page == 'memory' %}active{% endif %}">
+      <span class="nav-icon">&#x1F50D;</span><span class="nav-label"> Memory</span>
+    </a>
+    <a href="/chat" class="nav-item {% if page == 'chat' %}active{% endif %}">
+      <span class="nav-icon">&#x1F4AC;</span><span class="nav-label"> Chat</span>
+    </a>
+  </nav>
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

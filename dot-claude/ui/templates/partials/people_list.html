@@ -1,0 +1,25 @@
+{% if not people %}
+<div class="card">
+  <p class="placeholder-text">No people found in workspace.</p>
+</div>
+{% else %}
+{% for p in people %}
+<div class="card list-card" id="person-{{ p.name }}">
+  <div class="list-card-header"
+       hx-get="/api/people/{{ p.name }}"
+       hx-target="#person-{{ p.name }}-body"
+       hx-swap="innerHTML"
+       hx-on::after-request="this.closest('.list-card').classList.toggle('expanded')">
+    <span class="list-card-icon">&#x1F464;</span>
+    <div class="list-card-info">
+      <div class="list-card-name">{{ p.name }}</div>
+      {% if p.role %}
+      <div class="list-card-desc">{{ p.role }}</div>
+      {% endif %}
+    </div>
+    <span class="list-card-chevron">&#x203A;</span>
+  </div>
+  <div class="list-card-body" id="person-{{ p.name }}-body"></div>
+</div>
+{% endfor %}
+{% endif %}

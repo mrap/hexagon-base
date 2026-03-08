@@ -1,0 +1,12 @@
+{% if items %}
+{% for item in items %}
+<div class="landing-item landing-{{ item.status }}">
+  <span class="landing-icon">
+    {% if item.status == 'done' %}&#x2705;{% elif item.status == 'in_progress' %}&#x1F504;{% else %}&#x2B1C;{% endif %}
+  </span>
+  <span class="landing-label">{{ item.label }}</span>
+</div>
+{% endfor %}
+{% else %}
+<p class="placeholder-text">No landings for today.</p>
+{% endif %}

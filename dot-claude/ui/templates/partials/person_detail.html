@@ -1,0 +1,10 @@
+<div class="detail-section">
+  <div class="detail-header">
+    <span class="detail-label">Profile</span>
+    <button class="edit-btn"
+            hx-get="/api/people/{{ person.name }}/edit"
+            hx-target="#person-{{ person.name }}-body"
+            hx-swap="innerHTML">Edit</button>
+  </div>
+  <div class="detail-content markdown-content">{{ person.profile | e }}</div>
+</div>

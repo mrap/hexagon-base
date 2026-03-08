@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Projects — Hex{% endblock %}
+{% block content %}
+<h1 class="page-title">Projects</h1>
+<div id="projects-list"
+     hx-get="/api/projects"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+  <p class="placeholder-text">Loading...</p>
+</div>
+{% endblock %}

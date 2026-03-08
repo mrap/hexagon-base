@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Capture — Hex{% endblock %}
+{% block content %}
+<div class="capture-page">
+  <h1 class="page-title">What's on your mind?</h1>
+  <form id="capture-form"
+        hx-post="/api/capture"
+        hx-target="#capture-confirmation"
+        hx-swap="innerHTML"
+        hx-on::after-request="if(event.detail.successful) { this.reset(); document.getElementById('capture-text').focus(); }">
+    <textarea id="capture-text"
+              name="text"
+              class="capture-textarea"
+              placeholder="Dump a thought, idea, follow-up, anything..."
+              autofocus
+              required></textarea>
+    <div class="capture-actions">
+      <button type="submit" class="capture-btn">Capture</button>
+      <span class="capture-hint">&#8984;+Enter</span>
+    </div>
+  </form>
+  <div id="capture-confirmation"></div>
+</div>
+
+<script>
+// Submit on Cmd+Enter or Ctrl+Enter
+document.getElementById('capture-text').addEventListener('keydown', function(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('capture-form').requestSubmit();
+  }
+});
+</script>
+{% endblock %}

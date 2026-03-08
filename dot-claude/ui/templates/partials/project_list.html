@@ -1,0 +1,25 @@
+{% if not projects %}
+<div class="card">
+  <p class="placeholder-text">No projects found in workspace.</p>
+</div>
+{% else %}
+{% for p in projects %}
+<div class="card list-card" id="project-{{ p.name }}">
+  <div class="list-card-header"
+       hx-get="/api/projects/{{ p.name }}"
+       hx-target="#project-{{ p.name }}-body"
+       hx-swap="innerHTML"
+       hx-on::after-request="this.closest('.list-card').classList.toggle('expanded')">
+    <span class="list-card-icon">&#x1F4C1;</span>
+    <div class="list-card-info">
+      <div class="list-card-name">{{ p.name }}</div>
+      {% if p.description %}
+      <div class="list-card-desc">{{ p.description }}</div>
+      {% endif %}
+    </div>
+    <span class="list-card-chevron">&#x203A;</span>
+  </div>
+  <div class="list-card-body" id="project-{{ p.name }}-body"></div>
+</div>
+{% endfor %}
+{% endif %}
