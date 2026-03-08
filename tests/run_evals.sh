@@ -5,6 +5,7 @@
 #   bash tests/run_evals.sh           # Run all evals
 #   bash tests/run_evals.sh bootstrap # Run only bootstrap evals
 #   bash tests/run_evals.sh memory    # Run only memory evals
+#   bash tests/run_evals.sh capture   # Run only capture evals
 #   bash tests/run_evals.sh syntax    # Run only syntax evals
 #
 # Code-based graders for deterministic pass/fail.
@@ -42,7 +43,7 @@ eval_syntax() {
   header "Syntax Checks"
 
   # Shell scripts
-  for script in scripts/bootstrap.sh dot-claude/scripts/startup.sh dot-claude/scripts/session.sh dot-claude/hooks/scripts/backup_session.sh dot-claude/scripts/landings-dashboard.sh; do
+  for script in scripts/bootstrap.sh dot-claude/scripts/startup.sh dot-claude/scripts/session.sh dot-claude/hooks/scripts/backup_session.sh dot-claude/scripts/landings-dashboard.sh dot-claude/scripts/capture.sh dot-claude/scripts/upgrade.sh dot-claude/scripts/workspace.sh; do
     if bash -n "$REPO_DIR/$script" 2>/dev/null; then
       pass "bash -n $script"
     else
@@ -51,11 +52,24 @@ eval_syntax() {
   done
 
   # Python scripts
-  for script in dot-claude/skills/memory/scripts/memory_index.py dot-claude/skills/memory/scripts/memory_search.py dot-claude/skills/memory/scripts/memory_health.py dot-claude/scripts/parse_transcripts.py; do
+  for script in dot-claude/skills/memory/scripts/memory_index.py dot-claude/skills/memory/scripts/memory_search.py dot-claude/skills/memory/scripts/memory_health.py dot-claude/scripts/parse_transcripts.py dot-claude/scripts/stale_deps.py; do
     if python3 -m py_compile "$REPO_DIR/$script" 2>/dev/null; then
       pass "py_compile $script"
     else
       fail "py_compile $script"
+    fi
+  done
+
+  # All .md command files have frontmatter or title
+  header "Syntax — Command Files"
+  for cmd_file in "$REPO_DIR"/dot-claude/commands/*.md; do
+    CMD_NAME=$(basename "$cmd_file" .md)
+    if head -5 "$cmd_file" | grep -q "^---$"; then
+      pass "command $CMD_NAME has frontmatter"
+    elif head -1 "$cmd_file" | grep -q "^#"; then
+      pass "command $CMD_NAME has title"
+    else
+      fail "command $CMD_NAME missing frontmatter or title"
     fi
   done
 }
@@ -66,8 +80,8 @@ eval_syntax() {
 eval_bootstrap() {
   header "Bootstrap — Fresh Install"
 
-  # Run bootstrap
-  OUTPUT=$(bash "$REPO_DIR/scripts/bootstrap.sh" --agent "$AGENT" --name "$NAME" --path "$TEST_DIR" 2>&1)
+  # Run bootstrap (pipe empty input for any interactive prompts)
+  OUTPUT=$(echo "" | bash "$REPO_DIR/scripts/bootstrap.sh" --agent "$AGENT" --name "$NAME" --path "$TEST_DIR" 2>&1)
   if [ $? -eq 0 ]; then
     pass "bootstrap exits 0"
   else
@@ -90,7 +104,7 @@ eval_bootstrap() {
 
   # --- Directory structure ---
   header "Bootstrap — Directory Structure"
-  for d in .sessions .claude/commands me/decisions raw/transcripts raw/messages raw/calendar raw/docs people projects evolution landings landings/weekly .claude/scripts .claude/skills/memory/scripts .claude/skills/landings .claude/hooks/scripts; do
+  for d in .sessions .claude/commands me/decisions raw/transcripts raw/messages raw/calendar raw/docs raw/captures people projects evolution landings landings/weekly .claude/scripts .claude/skills/memory/scripts .claude/skills/landings .claude/hooks/scripts; do
     if [ -d "$AGENT_DIR/$d" ]; then
       pass "dir exists: $d"
     else
@@ -161,7 +175,7 @@ eval_bootstrap() {
 
   # --- Commands in .claude/commands/ ---
   header "Bootstrap — Slash Commands"
-  EXPECTED_COMMANDS="context-save hex-connect-team hex-context-sync hex-create-team hex-save hex-shutdown hex-startup hex-sync"
+  EXPECTED_COMMANDS="context-save hex-checkpoint hex-connect-team hex-context-sync hex-create-team hex-decide hex-save hex-shutdown hex-startup hex-sync hex-triage hex-upgrade"
   for cmd in $EXPECTED_COMMANDS; do
     if [ -f "$AGENT_DIR/.claude/commands/${cmd}.md" ]; then
       pass "command installed: $cmd"
@@ -202,6 +216,19 @@ eval_bootstrap() {
     pass "landings-dashboard.sh is executable"
   else
     fail "landings-dashboard.sh is executable"
+  fi
+
+  # --- Capture script ---
+  if [ -f "$AGENT_DIR/.claude/scripts/capture.sh" ]; then
+    pass "capture.sh installed"
+  else
+    fail "capture.sh installed"
+  fi
+
+  if [ -x "$AGENT_DIR/.claude/scripts/capture.sh" ]; then
+    pass "capture.sh is executable"
+  else
+    fail "capture.sh is executable"
   fi
 
   for script in memory_index.py memory_search.py memory_health.py; do
@@ -314,7 +341,7 @@ eval_bootstrap_edge_cases() {
 
   # --path is used directly as the workspace (no nesting)
   NEST_DIR="/tmp/hexagon-nest-eval-$$"
-  OUTPUT=$(bash "$REPO_DIR/scripts/bootstrap.sh" --agent "myagent" --name "Test" --path "$NEST_DIR" 2>&1)
+  OUTPUT=$(echo "" | bash "$REPO_DIR/scripts/bootstrap.sh" --agent "myagent" --name "Test" --path "$NEST_DIR" 2>&1)
   if [ $? -eq 0 ]; then
     if [ -d "$NEST_DIR" ] && [ -f "$NEST_DIR/CLAUDE.md" ]; then
       pass "--path is used directly as workspace"
@@ -771,6 +798,133 @@ SAMPLE
 }
 
 # ═══════════════════════════════════════════════════════════════
+# EVAL GROUP: Quick Capture System
+# ═══════════════════════════════════════════════════════════════
+eval_capture() {
+  AGENT_DIR="$TEST_DIR"
+
+  if [ ! -d "$AGENT_DIR" ]; then
+    skip "capture evals (no workspace)"
+    return
+  fi
+
+  CAPTURE_SCRIPT="$AGENT_DIR/.claude/scripts/capture.sh"
+
+  if [ ! -f "$CAPTURE_SCRIPT" ]; then
+    fail "capture.sh not installed"
+    return
+  fi
+
+  # --- Inline capture ---
+  header "Capture — Inline Text"
+
+  OUTPUT=$(cd "$AGENT_DIR" && bash "$CAPTURE_SCRIPT" "This is an inline test capture" 2>&1)
+  if [ $? -eq 0 ]; then
+    pass "inline capture exits 0"
+  else
+    fail "inline capture failed: $OUTPUT"
+  fi
+
+  # Find the capture file
+  CAPTURE_FILES=$(ls "$AGENT_DIR/raw/captures/"*.md 2>/dev/null | wc -l)
+  if [ "$CAPTURE_FILES" -ge 1 ]; then
+    pass "capture file created in raw/captures/"
+  else
+    fail "no capture file in raw/captures/"
+    return
+  fi
+
+  LATEST_CAPTURE=$(ls -t "$AGENT_DIR/raw/captures/"*.md 2>/dev/null | head -1)
+
+  # Check YAML frontmatter
+  if head -1 "$LATEST_CAPTURE" | grep -q "^---$"; then
+    pass "capture has YAML frontmatter start"
+  else
+    fail "capture missing YAML frontmatter"
+  fi
+
+  if grep -q "^captured:" "$LATEST_CAPTURE"; then
+    pass "capture has 'captured' timestamp"
+  else
+    fail "capture missing 'captured' field"
+  fi
+
+  if grep -q "^source:" "$LATEST_CAPTURE"; then
+    pass "capture has 'source' field"
+  else
+    fail "capture missing 'source' field"
+  fi
+
+  # Check content is present
+  if grep -q "This is an inline test capture" "$LATEST_CAPTURE"; then
+    pass "capture contains user text"
+  else
+    fail "capture missing user text"
+  fi
+
+  # Check filename pattern: YYYY-MM-DD_HH-MM-SS.md
+  CAPTURE_BASENAME=$(basename "$LATEST_CAPTURE")
+  if echo "$CAPTURE_BASENAME" | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}\.md$'; then
+    pass "capture filename follows YYYY-MM-DD_HH-MM-SS.md pattern"
+  else
+    fail "capture filename '$CAPTURE_BASENAME' doesn't match pattern"
+  fi
+
+  # --- Piped capture ---
+  header "Capture — Piped Input"
+
+  sleep 1  # ensure different timestamp
+  OUTPUT=$(cd "$AGENT_DIR" && echo "piped capture content" | bash "$CAPTURE_SCRIPT" 2>&1)
+  if [ $? -eq 0 ]; then
+    pass "piped capture exits 0"
+  else
+    fail "piped capture failed: $OUTPUT"
+  fi
+
+  LATEST_PIPE=$(ls -t "$AGENT_DIR/raw/captures/"*.md 2>/dev/null | head -1)
+  if grep -q "piped capture content" "$LATEST_PIPE"; then
+    pass "piped capture contains piped text"
+  else
+    fail "piped capture missing piped text"
+  fi
+
+  # --- Empty input ---
+  header "Capture — Empty Input"
+
+  BEFORE_COUNT=$(ls "$AGENT_DIR/raw/captures/"*.md 2>/dev/null | wc -l)
+  OUTPUT=$(cd "$AGENT_DIR" && echo "" | bash "$CAPTURE_SCRIPT" 2>&1)
+  AFTER_COUNT=$(ls "$AGENT_DIR/raw/captures/"*.md 2>/dev/null | wc -l)
+
+  if [ "$AFTER_COUNT" -eq "$BEFORE_COUNT" ]; then
+    pass "empty input does not create a file"
+  else
+    fail "empty input created a capture file"
+  fi
+
+  # --- Workspace auto-detection ---
+  header "Capture — Workspace Detection"
+
+  # Run capture from a subdirectory (should still write to raw/captures/)
+  sleep 1
+  OUTPUT=$(cd "$AGENT_DIR/me" && bash "$CAPTURE_SCRIPT" "subdir capture test" 2>&1)
+  if [ $? -eq 0 ]; then
+    pass "capture works from subdirectory"
+  else
+    fail "capture from subdirectory failed: $OUTPUT"
+  fi
+
+  LATEST_SUB=$(ls -t "$AGENT_DIR/raw/captures/"*.md 2>/dev/null | head -1)
+  if grep -q "subdir capture test" "$LATEST_SUB"; then
+    pass "subdir capture wrote to correct location"
+  else
+    fail "subdir capture didn't write to raw/captures/"
+  fi
+
+  # Clean up capture files
+  rm -f "$AGENT_DIR/raw/captures/"*.md
+}
+
+# ═══════════════════════════════════════════════════════════════
 # EVAL GROUP: Template Integrity
 # ═══════════════════════════════════════════════════════════════
 eval_templates() {
@@ -902,6 +1056,39 @@ eval_templates() {
   else
     fail "hex-context-sync.md exists"
   fi
+
+  # --- Cross-check: template references all commands ---
+  header "Templates — Commands Cross-Check"
+
+  for cmd_file in "$REPO_DIR"/dot-claude/commands/*.md; do
+    CMD_NAME=$(basename "$cmd_file" .md)
+    if grep -q "$CMD_NAME" "$REPO_DIR/templates/CLAUDE.md.template"; then
+      pass "template references command: $CMD_NAME"
+    else
+      fail "template missing reference to command: $CMD_NAME"
+    fi
+  done
+
+  # --- Cross-check: template references all skills ---
+  header "Templates — Skills Cross-Check"
+
+  for skill_dir in "$REPO_DIR"/dot-claude/skills/*/; do
+    SKILL_NAME=$(basename "$skill_dir")
+    if grep -q "$SKILL_NAME" "$REPO_DIR/templates/CLAUDE.md.template"; then
+      pass "template references skill: $SKILL_NAME"
+    else
+      fail "template missing reference to skill: $SKILL_NAME"
+    fi
+  done
+
+  # --- No Meta-internal references ---
+  header "Templates — No Meta References"
+
+  if grep -rqi "internalfb\|fbsource\|phabricator\|@meta\.com" "$REPO_DIR/templates/" 2>/dev/null; then
+    fail "templates contain Meta-internal references"
+  else
+    pass "no Meta-internal references in templates"
+  fi
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -982,6 +1169,10 @@ case "$FILTER" in
     eval_bootstrap  # need workspace first
     eval_functional
     ;;
+  capture)
+    eval_bootstrap  # need workspace first
+    eval_capture
+    ;;
   templates)
     eval_templates
     ;;
@@ -993,12 +1184,13 @@ case "$FILTER" in
     eval_bootstrap
     eval_bootstrap_edge_cases
     eval_functional
+    eval_capture
     eval_memory
     eval_templates
     eval_distribution
     ;;
   *)
-    echo "Usage: $0 [all|syntax|bootstrap|functional|memory|templates|distribution]"
+    echo "Usage: $0 [all|syntax|bootstrap|capture|functional|memory|templates|distribution]"
     exit 1
     ;;
 esac
