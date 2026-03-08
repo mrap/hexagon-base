@@ -36,4 +36,13 @@ fi
 # ─── Launch ──────────────────────────────────────────────────────────────────
 PORT="${1:-3141}"
 echo "Hexagon UI running at http://localhost:$PORT"
+
+# Detect remote environment and print tunnel instructions
+if [ -n "${SSH_CONNECTION:-}" ] || [ -n "${SSH_TTY:-}" ]; then
+  TUNNEL_SCRIPT="$SCRIPT_DIR/ui-tunnel.sh"
+  if [ -f "$TUNNEL_SCRIPT" ]; then
+    bash "$TUNNEL_SCRIPT" "$PORT"
+  fi
+fi
+
 python3 "$UI_DIR/app.py" --workspace "$WORKSPACE" --port "$PORT"

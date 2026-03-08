@@ -117,6 +117,32 @@ Works on phone, tablet, desktop. Dark mode by default.
 
 > Requires Python 3.8+ and three pip packages: `fastapi`, `uvicorn`, `jinja2`. Installed automatically on first launch.
 
+### Remote Access (VM / Devserver)
+
+If your workspace runs on a remote machine (devserver, VM, OD), the UI auto-detects this and prints a copy-pasteable SSH tunnel command:
+
+```bash
+hex-ui   # on the remote machine — prints tunnel instructions automatically
+```
+
+Then on your **local machine**, tunnel the port:
+
+```bash
+ssh -L 3141:localhost:3141 you@your-server
+```
+
+Open http://localhost:3141 in your local browser.
+
+**Helper script** (run on your local machine):
+
+```bash
+./dot-claude/scripts/hex-ui-local.sh you@your-server
+```
+
+This opens the SSH tunnel and launches your browser in one step. Press Ctrl+C to disconnect.
+
+> **Flags:** `hex-ui --host 0.0.0.0` binds to all interfaces (use with caution). `hex-ui --tunnel` prints the SSH tunnel command without starting the server.
+
 ## Architecture
 
 Hexagon Base bootstraps a self-contained workspace. Claude Code natively reads `.claude/commands/` for slash commands and `.claude/settings.json` for hooks — no plugin manifest needed.

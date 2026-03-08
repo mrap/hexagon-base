@@ -804,6 +804,11 @@ def main():
         default=None,
         help="Workspace path (auto-detected if omitted)",
     )
+    parser.add_argument(
+        "--tunnel",
+        action="store_true",
+        help="Print SSH tunnel instructions for remote access",
+    )
     args = parser.parse_args()
 
     ws = Path(args.workspace) if args.workspace else find_workspace()
@@ -813,6 +818,24 @@ def main():
 
     print(f"Hexagon UI serving workspace: {ws}")
     print(f"Open http://{args.host}:{args.port}")
+
+    if args.tunnel or os.environ.get("SSH_CONNECTION") or os.environ.get("SSH_TTY"):
+        import socket
+
+        hostname = socket.getfqdn()
+        user = os.environ.get("USER", "you")
+        print()
+        print("=" * 59)
+        print("  Hexagon UI is running on this remote server.")
+        print()
+        print("  To access from your local machine, open a NEW terminal")
+        print("  and run:")
+        print()
+        print(f"    ssh -L {args.port}:localhost:{args.port} {user}@{hostname}")
+        print()
+        print(f"  Then open: http://localhost:{args.port}")
+        print("=" * 59)
+        print()
 
     import uvicorn
 
