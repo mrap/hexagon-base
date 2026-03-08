@@ -1060,6 +1060,7 @@ def create_app(workspace: Path | None = None) -> FastAPI:
                 proc = await asyncio.create_subprocess_exec(
                     claude_cmd, "-p",
                     "--output-format", "stream-json",
+                    "--verbose",
                     "--include-partial-messages",
                     prompt,
                     stdout=asyncio.subprocess.PIPE,
