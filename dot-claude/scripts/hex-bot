@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# hex-bot — manage the Telegram bot daemon
+# Usage: hex-bot {start|stop|status}
+set -uo pipefail
+
+PID_FILE="${HOME}/.config/hex/bot.pid"
+LOG_FILE="${HOME}/.config/hex/bot.log"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BOT_PY="${SCRIPT_DIR}/hex-bot.py"
+
+# Check if the bot process is actually alive
+is_running() {
+    [[ -f "$PID_FILE" ]] || return 1
+    local pid
+    pid=$(<"$PID_FILE")
+    [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null
+}
+
+cmd_start() {
+    if is_running; then
+        local pid=$(<"$PID_FILE")
+        echo "hex-bot already running (PID $pid)"
+        return 0
+    fi
+
+    # Clean stale PID file
+    rm -f "$PID_FILE"
+
+    # Check for bot token
+    if [[ -z "${HEX_BOT_TOKEN:-}" ]]; then
+        # Try loading from .env
+        local env_file="${HOME}/.config/hex/.env"
+        if [[ -f "$env_file" ]]; then
+            # Source only HEX_BOT_TOKEN to avoid polluting env
+            local token
+            token=$(grep -oP '(?<=^HEX_BOT_TOKEN=).*' "$env_file" 2>/dev/null | head -1)
+            if [[ -n "$token" ]]; then
+                export HEX_BOT_TOKEN="$token"
+            fi
+        fi
+    fi
+
+    if [[ -z "${HEX_BOT_TOKEN:-}" ]]; then
+        echo "hex-bot: HEX_BOT_TOKEN not set. Set it in env or ~/.config/hex/.env" >&2
+        return 1
+    fi
+
+    # Ensure log directory exists
+    mkdir -p "$(dirname "$LOG_FILE")"
+
+    # Start detached from any terminal/tmux — survives session restarts
+    # Python script writes its own PID file after successful startup
+    nohup python3 "$BOT_PY" >> "$LOG_FILE" 2>&1 &
+    disown
+
+    # Wait briefly for PID file to appear
+    local tries=0
+    while [[ ! -f "$PID_FILE" ]] && [[ $tries -lt 10 ]]; do
+        sleep 0.2
+        tries=$((tries + 1))
+    done
+
+    if is_running; then
+        local pid=$(<"$PID_FILE")
+        echo "hex-bot started (PID $pid)"
+    else
+        echo "hex-bot failed to start — check $LOG_FILE" >&2
+        return 1
+    fi
+}
+
+cmd_stop() {
+    if ! is_running; then
+        echo "hex-bot is not running"
+        rm -f "$PID_FILE"
+        return 0
+    fi
+
+    local pid=$(<"$PID_FILE")
+    echo "Stopping hex-bot (PID $pid)..."
+    kill "$pid" 2>/dev/null
+
+    # Wait for clean shutdown
+    local tries=0
+    while kill -0 "$pid" 2>/dev/null && [[ $tries -lt 20 ]]; do
+        sleep 0.2
+        tries=$((tries + 1))
+    done
+
+    if kill -0 "$pid" 2>/dev/null; then
+        echo "Force killing hex-bot..."
+        kill -9 "$pid" 2>/dev/null
+    fi
+    rm -f "$PID_FILE"
+    echo "hex-bot stopped"
+}
+
+cmd_status() {
+    if is_running; then
+        local pid=$(<"$PID_FILE")
+        echo "hex-bot is running (PID $pid)"
+    else
+        echo "hex-bot is not running"
+        rm -f "$PID_FILE" 2>/dev/null
+    fi
+    return 0
+}
+
+case "${1:-}" in
+    start)  cmd_start ;;
+    stop)   cmd_stop ;;
+    status) cmd_status ;;
+    *)
+        echo "Usage: hex-bot {start|stop|status}" >&2
+        exit 1
+        ;;
+esac
