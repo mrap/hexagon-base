@@ -43,6 +43,7 @@ else:
     AGENT_DIR = Path(os.environ.get("AGENT_DIR", SCRIPT_DIR.parent))
 
 LEARNINGS_FILE = AGENT_DIR / "me" / "learnings.md"
+REFLECTIONS_DIR = AGENT_DIR / "raw" / "reflections"
 SUGGESTIONS_FILE = AGENT_DIR / "evolution" / "suggestions.md"
 CLAUDE_MD = AGENT_DIR / "CLAUDE.md"
 PENDING_FILE = AGENT_DIR / "evolution" / ".pending-promotions.json"
@@ -52,6 +53,10 @@ CONFIG_PATH = Path.home() / ".config" / "hex" / "telegram.yaml"
 # Constants
 # ---------------------------------------------------------------------------
 MIN_CLUSTER_SIZE = 3
+# 0.15 Jaccard: intentionally low to catch near-duplicates with different wording
+# (e.g. "prefers concise responses" vs "wants short replies"). Higher thresholds
+# (0.3+) miss paraphrased patterns after stemming. Monitor false-positive rate —
+# if unrelated entries cluster together, raise toward 0.25.
 SIMILARITY_THRESHOLD = 0.15
 
 STOP_WORDS = {
@@ -117,12 +122,13 @@ def tokenize(text: str) -> set[str]:
 class Entry:
     """A single learning entry with metadata."""
 
-    __slots__ = ("text", "category", "date", "tokens")
+    __slots__ = ("text", "category", "date", "dates", "tokens")
 
-    def __init__(self, text: str, category: str, date: Optional[str]):
+    def __init__(self, text: str, category: str, date: Optional[str], dates: Optional[list[str]] = None):
         self.text = text
         self.category = category
         self.date = date
+        self.dates = dates or ([date] if date else [])
         self.tokens = tokenize(text)
 
 
@@ -143,9 +149,43 @@ def parse_learnings(filepath: Path) -> list[Entry]:
             current_category = stripped[3:].strip()
         elif stripped.startswith("- ") and current_category:
             text = stripped[2:].strip()
-            date_match = re.search(r"\((\d{4}-\d{2}-\d{2})\)\s*$", text)
-            date = date_match.group(1) if date_match else None
-            entries.append(Entry(text, current_category, date))
+            # Match single date: (2026-03-07)
+            single_match = re.search(r"\((\d{4}-\d{2}-\d{2})\)\s*$", text)
+            # Match multiple dates: (2026-03-01, 2026-03-07, 2026-03-08)
+            multi_match = re.search(r"\((\d{4}-\d{2}-\d{2}(?:,\s*\d{4}-\d{2}-\d{2})+)\)\s*$", text)
+            dates: list[str] = []
+            if multi_match:
+                dates = re.findall(r"\d{4}-\d{2}-\d{2}", multi_match.group(1))
+            elif single_match:
+                dates = [single_match.group(1)]
+            date = dates[0] if dates else None
+            entries.append(Entry(text, current_category, date, dates))
+
+    return entries
+
+
+def parse_reflections(dirpath: Path) -> list[Entry]:
+    """Parse raw/reflections/*.md into entries for clustering."""
+    entries: list[Entry] = []
+    if not dirpath.is_dir():
+        return entries
+
+    for md_file in sorted(dirpath.glob("*.md")):
+        # Extract date from filename (YYYY-MM-DD.md)
+        date_match = re.match(r"(\d{4}-\d{2}-\d{2})\.md$", md_file.name)
+        date = date_match.group(1) if date_match else None
+
+        current_category = "Reflection"
+        for line in md_file.read_text().splitlines():
+            stripped = line.strip()
+            if stripped.startswith("## "):
+                current_category = stripped[3:].strip()
+            elif stripped.startswith("- ") and len(stripped) > 10:
+                text = stripped[2:].strip()
+                # Skip meta lines (auto-generated headers, empty observations)
+                if text.startswith("_") or text.startswith("Auto-generated"):
+                    continue
+                entries.append(Entry(text, current_category, date))
 
     return entries
 
@@ -161,7 +201,14 @@ def jaccard(a: set, b: set) -> float:
 
 
 def find_clusters(entries: list[Entry]) -> list[list[Entry]]:
-    """Find clusters of similar dated entries within the same category."""
+    """Find clusters of similar dated entries within the same category.
+
+    Uses union-find for clustering: O(n²) pairwise Jaccard comparison within each
+    category, then union-find to merge transitively similar entries. This is simple
+    and sufficient for <500 entries. DBSCAN or hierarchical clustering would add
+    dependency complexity (scipy/sklearn) without meaningful benefit at this scale.
+    Revisit if entry count exceeds ~1000 or if category-blind clustering is needed.
+    """
     by_category: dict[str, list[Entry]] = defaultdict(list)
     for e in entries:
         if e.date:
@@ -214,9 +261,11 @@ def cluster_key(cluster: list[Entry]) -> str:
 
 def generate_rule(cluster: list[Entry]) -> str:
     """Pick the most concise entry as the rule candidate."""
-    # Strip date annotation from the shortest entry
     base = min(cluster, key=lambda e: len(e.text))
-    rule = re.sub(r"\s*\(\d{4}-\d{2}-\d{2}\)\s*$", "", base.text)
+    # Strip date annotations: single (2026-03-07) or multi (2026-03-01, 2026-03-07)
+    rule = re.sub(r"\s*\(\d{4}-\d{2}-\d{2}(?:,\s*\d{4}-\d{2}-\d{2})*\)\s*$", "", base.text)
+    # Strip (imported) tag
+    rule = re.sub(r"\s*\(imported\)\s*$", "", rule)
     return rule
 
 
@@ -316,7 +365,9 @@ def _load_telegram_config() -> tuple[str, str]:
             key = key.strip()
             val = val.strip().strip('"').strip("'")
 
-            if key == "bot_token" and not token:
+            if key == "bot_token_env" and not token:
+                token = os.environ.get(val, "")
+            elif key == "bot_token" and not token:
                 env_match = re.match(r"^\$\{(\w+)\}$", val)
                 if env_match:
                     token = os.environ.get(env_match.group(1), "")
@@ -387,15 +438,29 @@ def analyze_and_promote() -> int:
     """Run the full analysis pipeline. Returns number of new candidates."""
     log.info("Parsing learnings from %s", LEARNINGS_FILE)
     entries = parse_learnings(LEARNINGS_FILE)
+
+    log.info("Parsing reflections from %s", REFLECTIONS_DIR)
+    reflection_entries = parse_reflections(REFLECTIONS_DIR)
+    entries.extend(reflection_entries)
+    log.info("Added %d entries from reflections", len(reflection_entries))
+
     dated = [e for e in entries if e.date]
-    log.info("Found %d entries (%d dated)", len(entries), len(dated))
+    log.info("Found %d total entries (%d dated)", len(entries), len(dated))
 
     if len(dated) < MIN_CLUSTER_SIZE:
         log.info("Not enough dated entries for clustering")
         return 0
 
+    # Check for single entries that already have 3+ dates (repeated pattern)
+    multi_date_entries = [e for e in entries if len(e.dates) >= MIN_CLUSTER_SIZE]
+    log.info("Found %d entries with %d+ dates", len(multi_date_entries), MIN_CLUSTER_SIZE)
+
     clusters = find_clusters(entries)
     log.info("Found %d cluster(s) with %d+ members", len(clusters), MIN_CLUSTER_SIZE)
+
+    # Add multi-date entries as single-entry clusters
+    for e in multi_date_entries:
+        clusters.append([e])
 
     if not clusters:
         return 0
@@ -411,14 +476,19 @@ def analyze_and_promote() -> int:
             continue
 
         rule = generate_rule(cluster)
-        dates = sorted({e.date for e in cluster if e.date})
+        # Collect all dates from entries (including multi-date entries)
+        all_dates: set[str] = set()
+        for e in cluster:
+            all_dates.update(e.dates)
+        dates = sorted(all_dates)
 
+        occurrence_count = max(len(cluster), len(dates))
         candidate: dict[str, Any] = {
             "id": f"promo_{ckey}",
             "category": cluster[0].category,
             "rule": rule,
             "entries": [e.text[:120] for e in cluster],
-            "entry_count": len(cluster),
+            "entry_count": occurrence_count,
             "dates": dates,
             "status": "pending",
             "created": datetime.now().strftime("%Y-%m-%d"),
