@@ -10,14 +10,14 @@ description: >
 ## Step 1: Run Startup Script
 
 ```bash
-bash $AGENT_DIR/.claude/scripts/startup.sh
+AGENT_DIR="$(pwd)" bash "$(pwd)/.claude/scripts/startup.sh"
 ```
 
 This handles: environment detection, session registration, transcript parsing, memory index rebuild, health check, integration check, and pending improvement suggestions.
 
 ## Step 2: Check for First-Time Setup
 
-Read `$AGENT_DIR/me/me.md`. If it still contains the placeholder text "Your name here", this is a first-time user. Run **Onboarding** (Step 2a). Otherwise, skip to **Returning User** (Step 2b).
+Read `me/me.md`. If it still contains the placeholder text "Your name here", this is a first-time user. Run **Onboarding** (Step 2a). Otherwise, skip to **Returning User** (Step 2b).
 
 ### Step 2a: First-Time Onboarding (Phase 1)
 
@@ -33,14 +33,14 @@ Then say: "You're set up. I'll learn more about how you work over the next few s
 
 ### Step 2b: Returning User
 
-1. Read `$AGENT_DIR/todo.md` for current priorities
-2. Read `$AGENT_DIR/me/learnings.md` for recent observations
-3. Check `$AGENT_DIR/landings/` for today's landing targets (if any)
-4. Check `$AGENT_DIR/evolution/suggestions.md` for pending improvement proposals
+1. Read `todo.md` for current priorities
+2. Read `me/learnings.md` for recent observations
+3. Check `landings/` for today's landing targets (if any)
+4. Check `evolution/suggestions.md` for pending improvement proposals
 5. If today is a workday and no landings exist for today, propose 3-5 landing targets based on todo.md
 
 Surface a brief summary: "Ready. Here's what needs attention today:" followed by top priorities, meetings to prep, overdue items, and any pending improvement suggestions.
 
 ## Step 3: Team Sync (if configured)
 
-Check `$AGENT_DIR/teams.json`. If teams are configured, mention any unsynced updates. Don't auto-sync. Just surface: "Team updates available. Run /hex-sync when ready."
+Check `teams.json`. If teams are configured, mention any unsynced updates. Don't auto-sync. Just surface: "Team updates available. Run /hex-sync when ready."
