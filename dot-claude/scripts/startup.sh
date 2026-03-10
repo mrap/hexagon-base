@@ -212,6 +212,15 @@ step_evolution() {
         return
     fi
 
+    # Check evolution DB for items ready for promotion (3+ occurrences)
+    CHECK_EVO="$SCRIPTS_DIR/check-evolution.sh"
+    if [[ -f "$CHECK_EVO" ]]; then
+        CHECK_OUT=$(bash "$CHECK_EVO" 2>&1) || true
+        if echo "$CHECK_OUT" | grep -q "Appended"; then
+            info "$CHECK_OUT"
+        fi
+    fi
+
     # Count pending suggestions (lines starting with "## " that have "Status: proposed")
     PENDING=$(grep -c "Status: proposed" "$SUGGESTIONS" 2>/dev/null) || true
     if [[ "${PENDING:-0}" -gt 0 ]]; then
@@ -337,10 +346,10 @@ main() {
     echo "────────────────────────────────────────────────────────────"
     if [[ $FAILURES -gt 0 ]]; then
         echo -e "  ${RED}${FAILURES} failure(s)${RESET}, ${YELLOW}${WARNINGS} warning(s)${RESET}"
-        exit 2
+        exit 1
     elif [[ $WARNINGS -gt 0 ]]; then
         echo -e "  ${GREEN}Startup complete${RESET} with ${YELLOW}${WARNINGS} warning(s)${RESET}"
-        exit 1
+        exit 0
     else
         echo -e "  ${GREEN}Startup complete. All checks passed.${RESET}"
         exit 0

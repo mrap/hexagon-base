@@ -106,6 +106,16 @@ if $DRY_RUN; then
     echo "=== Would append to $SUGGESTIONS ==="
     echo "$NEW_SUGGESTIONS"
 else
+    # Ensure parent directory and suggestions file exist
+    mkdir -p "$(dirname "$SUGGESTIONS")"
+    if [[ ! -f "$SUGGESTIONS" ]]; then
+        cat > "$SUGGESTIONS" <<'HEADER'
+# Suggestions
+
+_Part of the improvement engine._
+HEADER
+    fi
+
     # Atomic write: append via temp file
     TMP=$(mktemp "${SUGGESTIONS}.tmp.XXXXXX")
     cat "$SUGGESTIONS" > "$TMP"

@@ -8,8 +8,9 @@
 #   2. Read today's transcript
 #   3. Call claude -p to extract patterns
 #   4. Save reflection to raw/reflections/YYYY-MM-DD.md
-#   5. Append new learnings to me/learnings.md (dedup)
-#   6. Add friction items to evolution database
+#
+# Does NOT auto-append to learnings.md or evolution DB.
+# Use promote-learnings.py separately for pattern promotion with human review.
 #
 # Part of the Hexagon system.
 set -uo pipefail
@@ -32,18 +33,73 @@ else
 fi
 TRANSCRIPT_DIR="$AGENT_DIR/raw/transcripts"
 REFLECTIONS_DIR="$AGENT_DIR/raw/reflections"
-LEARNINGS_FILE="$AGENT_DIR/me/learnings.md"
-EVOLUTION_DB="$AGENT_DIR/.claude/skills/memory/scripts/evolution_db.py"
 LOG_FILE="$REFLECTIONS_DIR/.session-reflect.log"
-MAX_TRANSCRIPT_BYTES=40000
+MAX_TRANSCRIPT_BYTES=8000
+MAX_USER_MESSAGES=100
 
 mkdir -p "$REFLECTIONS_DIR"
+
+# Log rotation: cap total log usage at ~200KB (current + one backup)
+if [ -f "$LOG_FILE" ]; then
+    LOG_SIZE=$(stat -c %s "$LOG_FILE" 2>/dev/null || echo 0)
+    if [ "$LOG_SIZE" -gt 102400 ]; then
+        rm -f "${LOG_FILE}.old"
+        mv "$LOG_FILE" "${LOG_FILE}.old"
+    fi
+fi
 
 log() {
     echo "[session-reflect $(date +%H:%M:%S)] $*" >> "$LOG_FILE" 2>/dev/null
 }
 
 log "=== Starting reflection for $TODAY ==="
+
+# Skip non-interactive sessions
+# 1. BOI workers
+if [ -n "${BOI_QUEUE_ID:-}" ] || [ -n "${BOI_WORKER:-}" ]; then
+    log "BOI worker session, skipping."
+    exit 0
+fi
+# 2. Subagents (Task tool spawns)
+if [ -n "${CLAUDE_PARENT_SESSION_ID:-}" ]; then
+    log "Subagent session, skipping."
+    exit 0
+fi
+# 3. Non-interactive sessions (claude -p, headless)
+if [ "${CLAUDE_NON_INTERACTIVE:-}" = "1" ] || [ -n "${CLAUDE_PROMPT:-}" ]; then
+    log "Non-interactive session, skipping."
+    exit 0
+fi
+# 4. Short sessions — check if transcript has enough user messages to be worth reflecting on
+# We check this after finding the transcript (below), but gate on session env first
+if [ -n "${CLAUDE_SESSION_ID:-}" ]; then
+    # Find this session's .jsonl and check message count
+    # Derive project sessions dir from cwd: /Users/me/myproject -> -Users-me-myproject
+    _PROJECT_DIR_HASH=$(pwd | sed 's|/|-|g')
+    SESSION_JSONL="$HOME/.claude/projects/${_PROJECT_DIR_HASH}/${CLAUDE_SESSION_ID}.jsonl"
+    if [ -f "$SESSION_JSONL" ]; then
+        MSG_COUNT=$(grep -c '"type":"human"' "$SESSION_JSONL" 2>/dev/null || echo 0)
+        if [ "$MSG_COUNT" -lt 3 ]; then
+            log "Short session ($MSG_COUNT user messages), skipping."
+            exit 0
+        fi
+        log "Session has $MSG_COUNT user messages, proceeding."
+    fi
+fi
+
+# Lockfile to prevent concurrent execution (multiple sessions ending at once)
+LOCKFILE="$REFLECTIONS_DIR/.session-reflect.lock"
+if [ -f "$LOCKFILE" ]; then
+    LOCK_AGE=$(( $(date +%s) - $(stat -c %Y "$LOCKFILE" 2>/dev/null || echo 0) ))
+    if [ "$LOCK_AGE" -lt 120 ]; then
+        log "Another instance is running (lock age: ${LOCK_AGE}s), skipping."
+        exit 0
+    fi
+    log "Stale lockfile (${LOCK_AGE}s old), removing."
+    rm -f "$LOCKFILE"
+fi
+echo $$ > "$LOCKFILE"
+trap 'rm -f "$LOCKFILE"' EXIT
 
 # Bail early if claude is not available
 if ! command -v claude &>/dev/null; then
@@ -63,16 +119,48 @@ if [ ! -f "$TRANSCRIPT" ]; then
     exit 0
 fi
 
-# Step 3: Read transcript, truncate if too large
-TRANSCRIPT_SIZE=$(wc -c < "$TRANSCRIPT")
-if [ "$TRANSCRIPT_SIZE" -gt "$MAX_TRANSCRIPT_BYTES" ]; then
-    TRANSCRIPT_CONTENT="[Truncated to last ~40KB of $(( TRANSCRIPT_SIZE / 1024 ))KB transcript]
+# Step 3: Extract last N user messages (not tool outputs) to reduce input size
+# User messages in the parsed markdown start with "> " after "**N. User" lines
+TRANSCRIPT_CONTENT=$(python3 -c "
+import sys
+lines = open(sys.argv[1]).readlines()
+user_msgs = []
+in_user = False
+current = []
+for line in lines:
+    if line.startswith('**') and '. User' in line:
+        if current:
+            user_msgs.append(''.join(current).strip())
+        in_user = True
+        current = [line]
+    elif in_user and (line.startswith('**Assistant') or line.startswith('*Tools:')):
+        if current:
+            user_msgs.append(''.join(current).strip())
+        in_user = False
+        current = []
+    elif in_user:
+        current.append(line)
+if current:
+    user_msgs.append(''.join(current).strip())
+# Take last N messages, cap total size
+limit = int(sys.argv[2])
+max_bytes = int(sys.argv[3])
+msgs = user_msgs[-limit:]
+result = '\n\n---\n\n'.join(msgs)
+if len(result) > max_bytes:
+    result = result[-max_bytes:]
+print(result)
+" "$TRANSCRIPT" "$MAX_USER_MESSAGES" "$MAX_TRANSCRIPT_BYTES" 2>/dev/null) || {
+    log "Failed to extract user messages, falling back to tail"
+    TRANSCRIPT_CONTENT="$(tail -c "$MAX_TRANSCRIPT_BYTES" "$TRANSCRIPT")"
+}
 
-$(tail -c "$MAX_TRANSCRIPT_BYTES" "$TRANSCRIPT")"
-    log "Truncated transcript from ${TRANSCRIPT_SIZE}B to ~${MAX_TRANSCRIPT_BYTES}B"
-else
-    TRANSCRIPT_CONTENT="$(cat "$TRANSCRIPT")"
+if [ -z "$TRANSCRIPT_CONTENT" ]; then
+    log "No user messages found in transcript, skipping."
+    exit 0
 fi
+
+log "Extracted user messages (${#TRANSCRIPT_CONTENT} chars)"
 
 # Step 4: Build extraction prompt
 read -r -d '' EXTRACT_PROMPT << 'PROMPTEOF' || true
@@ -115,21 +203,27 @@ FULL_PROMPT="$EXTRACT_PROMPT
 SESSION TRANSCRIPT:
 $TRANSCRIPT_CONTENT"
 
-# Step 5: Call claude -p with CLAUDE* env vars stripped (timeout 50s)
+# Step 5: Call claude -p with CLAUDE* env vars stripped (timeout 55s)
 log "Calling claude -p for reflection (transcript: ${#TRANSCRIPT_CONTENT} chars)..."
 
+# Write prompt to temp file to avoid argument length limits
+PROMPT_TMP="$REFLECTIONS_DIR/.prompt.tmp"
+printf '%s' "$FULL_PROMPT" > "$PROMPT_TMP"
+
+# Build env command to strip all CLAUDE* vars
+UNSET_ARGS=""
+for var in $(env | grep '^CLAUDE' | cut -d= -f1); do
+    UNSET_ARGS="$UNSET_ARGS -u $var"
+done
+
 RESPONSE=""
-RESPONSE=$(
-    # Strip CLAUDE* env vars to prevent recursive hooks or session conflicts
-    for var in $(env | grep '^CLAUDE' | cut -d= -f1); do
-        unset "$var"
-    done
-    timeout 50 claude -p --model haiku "$FULL_PROMPT" 2>/dev/null
-) || {
+RESPONSE=$(env $UNSET_ARGS timeout 55 claude -p --model haiku --no-session-persistence < "$PROMPT_TMP" 2>/dev/null) || {
     EXIT_CODE=$?
     log "claude -p failed (exit: $EXIT_CODE)"
+    rm -f "$PROMPT_TMP"
     exit 0
 }
+rm -f "$PROMPT_TMP"
 
 if [ -z "$RESPONSE" ]; then
     log "Empty response from claude, skipping."
@@ -143,97 +237,29 @@ log "Got reflection ($RESPONSE_SIZE chars)"
 REFLECTION_TMP="$REFLECTIONS_DIR/${TODAY}.md.tmp"
 REFLECTION_FILE="$REFLECTIONS_DIR/${TODAY}.md"
 
-cat > "$REFLECTION_TMP" << EOF
-# Session Reflection — $TODAY
+# Append to daily file instead of overwriting
+TIMESTAMP=$(date +%H:%M)
+if [ -f "$REFLECTION_FILE" ]; then
+    cat >> "$REFLECTION_FILE" << EOF
 
-_Auto-generated by session-reflect.sh_
+---
+
+## Reflection @ $TIMESTAMP
 
 $RESPONSE
 EOF
-mv "$REFLECTION_TMP" "$REFLECTION_FILE"
+else
+    cat > "$REFLECTION_TMP" << EOF
+# Session Reflections — $TODAY
+
+_Auto-generated by session-reflect.sh_
+
+## Reflection @ $TIMESTAMP
+
+$RESPONSE
+EOF
+    mv "$REFLECTION_TMP" "$REFLECTION_FILE"
+fi
 log "Saved reflection to $REFLECTION_FILE"
 
-# Step 7: Append new learnings to me/learnings.md (with dedup)
-NEW_LEARNINGS=0
-
-append_if_new() {
-    local entry="$1"
-    # Extract core text for matching (strip leading "- ", trailing date/category)
-    local core="${entry#- }"
-    # Use first 40 chars as match key to catch near-duplicates
-    local match_key="${core:0:40}"
-    if [ -z "$match_key" ]; then
-        return 1
-    fi
-    if ! grep -qF "$match_key" "$LEARNINGS_FILE" 2>/dev/null; then
-        echo "$entry" >> "$LEARNINGS_FILE"
-        NEW_LEARNINGS=$((NEW_LEARNINGS + 1))
-        log "  + learning: ${entry:0:80}..."
-        return 0
-    fi
-    log "  ~ duplicate: ${entry:0:60}..."
-    return 1
-}
-
-# Step 8: Parse response sections
-CURRENT_SECTION=""
-FRICTION_ADDED=0
-
-while IFS= read -r line; do
-    case "$line" in
-        "## Corrections"|"## Preferences"|"## Decisions")
-            CURRENT_SECTION="learnings"
-            ;;
-        "## Friction Points"|"## Friction")
-            CURRENT_SECTION="friction"
-            ;;
-        "## "*)
-            CURRENT_SECTION=""
-            ;;
-        "- "*)
-            if [ "$CURRENT_SECTION" = "friction" ]; then
-                # Extract category from [category] at end of line
-                if [[ "$line" =~ \[([a-z-]+)\][[:space:]]*$ ]]; then
-                    CATEGORY="${BASH_REMATCH[1]}"
-                    TITLE="${line#- }"
-                    TITLE="${TITLE% \[*\]}"
-                    TITLE="${TITLE%[[:space:]]}"
-                    # Validate category
-                    case "$CATEGORY" in
-                        automation-candidate|bug-recurring|architecture-gap|skill-candidate|architecture-exploration)
-                            if [ -f "$EVOLUTION_DB" ]; then
-                                AGENT_DIR="$AGENT_DIR" python3 "$EVOLUTION_DB" add "$TITLE" \
-                                    --category "$CATEGORY" \
-                                    --context "Observed in session $TODAY" >> "$LOG_FILE" 2>&1 || true
-                                FRICTION_ADDED=$((FRICTION_ADDED + 1))
-                                log "  + friction: $TITLE [$CATEGORY]"
-                            fi
-                            ;;
-                        *)
-                            log "  ! invalid category '$CATEGORY': $line"
-                            ;;
-                    esac
-                else
-                    log "  ! no category in friction line: $line"
-                fi
-            elif [ "$CURRENT_SECTION" = "learnings" ]; then
-                append_if_new "$line" || true
-            fi
-            ;;
-    esac
-done <<< "$RESPONSE"
-
-# Step 9: Export evolution db to update observations.md
-if [ "$FRICTION_ADDED" -gt 0 ] && [ -f "$EVOLUTION_DB" ]; then
-    AGENT_DIR="$AGENT_DIR" python3 "$EVOLUTION_DB" export >> "$LOG_FILE" 2>&1 || true
-    log "Exported evolution db"
-fi
-
-log "=== Reflection complete. Learnings: $NEW_LEARNINGS, Friction: $FRICTION_ADDED ==="
-
-# Step 10: Run learning-to-standing-order promotion pipeline
-PROMOTE_SCRIPT="$AGENT_DIR/.claude/scripts/promote-learnings.py"
-if [ -f "$PROMOTE_SCRIPT" ]; then
-    AGENT_DIR="$AGENT_DIR" python3 "$PROMOTE_SCRIPT" >> "$LOG_FILE" 2>&1 || true
-    log "Ran promote-learnings pipeline"
-fi
+log "=== Reflection complete. Saved to $REFLECTION_FILE ==="
