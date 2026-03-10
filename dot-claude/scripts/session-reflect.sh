@@ -41,7 +41,11 @@ mkdir -p "$REFLECTIONS_DIR"
 
 # Log rotation: cap total log usage at ~200KB (current + one backup)
 if [ -f "$LOG_FILE" ]; then
-    LOG_SIZE=$(stat -c %s "$LOG_FILE" 2>/dev/null || echo 0)
+    if [[ "$OSTYPE" == darwin* ]]; then
+        LOG_SIZE=$(stat -f%z "$LOG_FILE" 2>/dev/null || echo 0)
+    else
+        LOG_SIZE=$(stat -c %s "$LOG_FILE" 2>/dev/null || echo 0)
+    fi
     if [ "$LOG_SIZE" -gt 102400 ]; then
         rm -f "${LOG_FILE}.old"
         mv "$LOG_FILE" "${LOG_FILE}.old"
@@ -90,7 +94,12 @@ fi
 # Lockfile to prevent concurrent execution (multiple sessions ending at once)
 LOCKFILE="$REFLECTIONS_DIR/.session-reflect.lock"
 if [ -f "$LOCKFILE" ]; then
-    LOCK_AGE=$(( $(date +%s) - $(stat -c %Y "$LOCKFILE" 2>/dev/null || echo 0) ))
+    if [[ "$OSTYPE" == darwin* ]]; then
+        LOCK_MTIME=$(stat -f%m "$LOCKFILE" 2>/dev/null || echo 0)
+    else
+        LOCK_MTIME=$(stat -c %Y "$LOCKFILE" 2>/dev/null || echo 0)
+    fi
+    LOCK_AGE=$(( $(date +%s) - LOCK_MTIME ))
     if [ "$LOCK_AGE" -lt 120 ]; then
         log "Another instance is running (lock age: ${LOCK_AGE}s), skipping."
         exit 0
