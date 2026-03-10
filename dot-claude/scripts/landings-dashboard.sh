@@ -279,7 +279,7 @@ if [[ "$in_threads" == true ]]; then echo ""; fi
 if grep -q "^- " "$FILE" 2>/dev/null; then
   echo -e "${LAVENDER}── Recent ──${RESET}"
   grep "^- " "$FILE" | tail -3 | while IFS= read -r entry; do
-    time=$(echo "$entry" | grep -oP '^\- \K[0-9:]+' 2>/dev/null || echo "")
+    time=$(echo "$entry" | sed -n 's/^- \([0-9:]*\).*/\1/p')
     body=$(echo "$entry" | sed 's/^- [0-9:]* — //')
     body=$(trunc "$body" $MAX)
     if [[ -n "$time" ]]; then

@@ -97,6 +97,33 @@ fi
 
 TODAY=$(date +%Y-%m-%d)
 
+# --- Step 0: Check dependencies ---
+echo "[0/7] Checking dependencies..."
+DEPS=(tmux watch)
+MISSING_DEPS=()
+
+for dep in "${DEPS[@]}"; do
+  if ! command -v "$dep" &>/dev/null; then
+    MISSING_DEPS+=("$dep")
+  fi
+done
+
+if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
+  info "Missing: ${MISSING_DEPS[*]}"
+  if command -v brew &>/dev/null; then
+    info "Installing via Homebrew..."
+    brew install "${MISSING_DEPS[@]}"
+  elif command -v apt-get &>/dev/null; then
+    info "Installing via apt..."
+    sudo apt-get install -y "${MISSING_DEPS[@]}"
+  else
+    error "Please install these manually: ${MISSING_DEPS[*]}"
+  fi
+  info "Dependencies installed."
+else
+  info "All dependencies present."
+fi
+
 # --- Step 1: Create folder structure ---
 echo "[1/7] Creating folder structure..."
 mkdir -p "$AGENT_DIR"/.sessions

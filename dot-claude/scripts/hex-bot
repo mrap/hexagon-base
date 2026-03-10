@@ -34,7 +34,7 @@ cmd_start() {
         if [[ -f "$env_file" ]]; then
             # Source only HEX_BOT_TOKEN to avoid polluting env
             local token
-            token=$(grep -oP '(?<=^HEX_BOT_TOKEN=).*' "$env_file" 2>/dev/null | head -1)
+            token=$(sed -n 's/^HEX_BOT_TOKEN=//p' "$env_file" 2>/dev/null | head -1)
             if [[ -n "$token" ]]; then
                 export HEX_BOT_TOKEN="$token"
             fi
