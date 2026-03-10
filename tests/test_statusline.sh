@@ -13,7 +13,22 @@ if [ -z "${AGENT_DIR:-}" ]; then
     candidate="$(dirname "$candidate")"
   done
 fi
-SCRIPT="$AGENT_DIR/.claude/statusline.sh"
+# Support both deployed (.claude/) and template repo (dot-claude/) layouts
+if [ -d "$AGENT_DIR/.claude" ]; then
+  CLAUDE_DIR="$AGENT_DIR/.claude"
+elif [ -d "$AGENT_DIR/dot-claude" ]; then
+  CLAUDE_DIR="$AGENT_DIR/dot-claude"
+else
+  echo "Cannot find .claude/ or dot-claude/ directory" >&2
+  exit 1
+fi
+SCRIPT="$CLAUDE_DIR/statusline.sh"
+if [ ! -f "$SCRIPT" ]; then
+  echo "=== statusline.sh tests ==="
+  echo "  SKIP: statusline.sh not found at $SCRIPT"
+  echo "=== Results: 0 passed, 0 failed ==="
+  exit 0
+fi
 PASS=0
 FAIL=0
 

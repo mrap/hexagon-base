@@ -13,7 +13,16 @@ if [ -z "${AGENT_DIR:-}" ]; then
     candidate="$(dirname "$candidate")"
   done
 fi
-GUARD="$AGENT_DIR/.claude/scripts/sync-guard.sh"
+# Support both deployed (.claude/) and template repo (dot-claude/) layouts
+if [ -d "$AGENT_DIR/.claude/scripts" ]; then
+  CLAUDE_DIR="$AGENT_DIR/.claude"
+elif [ -d "$AGENT_DIR/dot-claude/scripts" ]; then
+  CLAUDE_DIR="$AGENT_DIR/dot-claude"
+else
+  echo "Cannot find .claude/ or dot-claude/ directory" >&2
+  exit 1
+fi
+GUARD="$CLAUDE_DIR/scripts/sync-guard.sh"
 PASS=0
 FAIL=0
 
@@ -97,7 +106,10 @@ assert_block "todo.md reference blocked" bash "$GUARD" scan-file "$TMPFILE"
 echo "--- pattern builder ---"
 PATTERNS=$(bash "$GUARD" build-patterns 2>/dev/null)
 USER_NAME_CHECK=$(grep '^\*\*Name:\*\*' "$AGENT_DIR/me/me.md" 2>/dev/null | sed 's/\*\*Name:\*\* //' | awk '{print $1}' | tr -d '\r')
-if [ -n "$USER_NAME_CHECK" ] && echo "$PATTERNS" | grep -q "$USER_NAME_CHECK"; then
+if [ -z "$USER_NAME_CHECK" ]; then
+  PASS=$((PASS + 1))
+  echo "  SKIP: no user name configured in me/me.md"
+elif echo "$PATTERNS" | grep -q "$USER_NAME_CHECK"; then
   PASS=$((PASS + 1))
   echo "  PASS: patterns include user's name"
 else

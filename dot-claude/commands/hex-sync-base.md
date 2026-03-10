@@ -1,4 +1,9 @@
-# /hex-sync-base -- Sync local fixes to hexagon-base
+---
+name: hex-sync-base
+description: >
+  Sync local fixes to hexagon-base. Compare local hex against
+  hexagon-base and push improvements upstream.
+---
 # sync-safe
 
 Compare local hex against hexagon-base and push improvements upstream.

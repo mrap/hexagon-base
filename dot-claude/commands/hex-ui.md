@@ -1,6 +1,11 @@
-# /hex-ui - Launch the web UI
+---
+name: hex-ui
+description: >
+  Launch the Hexagon web UI server. Opens a browser-based interface
+  for your agent workspace.
+---
 
-Start the Hexagon web UI server. Opens a browser-based interface for your agent workspace.
+Start the Hexagon web UI server.
 
 ## Steps
 

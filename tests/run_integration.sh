@@ -53,7 +53,7 @@ AGENT_DIR="$TEST_DIR"
 # ═══════════════════════════════════════════════════════════════
 header "Slash Command Discovery"
 
-EXPECTED_COMMANDS="context-save hex-connect-team hex-context-sync hex-create-team hex-save hex-shutdown hex-startup hex-sync hex-upgrade"
+EXPECTED_COMMANDS="context-save hex-checkpoint hex-connect-team hex-context-sync hex-create-team hex-decide hex-save hex-shutdown hex-startup hex-sync hex-sync-base hex-triage hex-ui hex-upgrade"
 
 # Check each expected command has a file with valid frontmatter
 for cmd in $EXPECTED_COMMANDS; do
@@ -70,7 +70,7 @@ for cmd in $EXPECTED_COMMANDS; do
   fi
 
   # Must have name: field in frontmatter
-  FRONTMATTER=$(sed -n '2,/^---$/p' "$CMD_FILE" | head -n -1)
+  FRONTMATTER=$(sed -n '2,/^---$/p' "$CMD_FILE" | sed '$d')
   if ! echo "$FRONTMATTER" | grep -q "^name:"; then
     fail "/$cmd — missing name: in frontmatter"
     continue

@@ -14,7 +14,16 @@ if [ -z "${AGENT_DIR:-}" ]; then
   done
 fi
 REAL_AGENT_DIR="$AGENT_DIR"
-SCRIPT="$REAL_AGENT_DIR/.claude/skills/memory/scripts/evolution_db.py"
+# Support both deployed (.claude/) and template repo (dot-claude/) layouts
+if [ -d "$REAL_AGENT_DIR/.claude/skills" ]; then
+  CLAUDE_DIR="$REAL_AGENT_DIR/.claude"
+elif [ -d "$REAL_AGENT_DIR/dot-claude/skills" ]; then
+  CLAUDE_DIR="$REAL_AGENT_DIR/dot-claude"
+else
+  echo "Cannot find .claude/ or dot-claude/ directory" >&2
+  exit 1
+fi
+SCRIPT="$CLAUDE_DIR/skills/memory/scripts/evolution_db.py"
 PASS=0
 FAIL=0
 
